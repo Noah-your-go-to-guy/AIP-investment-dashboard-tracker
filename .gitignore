@@ -1,0 +1,17 @@
+node_modules/
+.npm-cache/
+tessdata/
+
+*.log
+npm-debug.log*
+
+.DS_Store
+Thumbs.db
+
+*.tmp
+*.bak
+
+aip-investment-dashboard-backup-*.json
+products-*.csv
+revenue-*.csv
+summary-*.csv

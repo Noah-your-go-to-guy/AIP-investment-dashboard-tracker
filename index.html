@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AIP Investment Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-copy">
+        <p class="eyebrow">Amazon Influencer Program</p>
+        <h1>AIP Portfolio</h1>
+        <p class="header-subtitle">Track product investments, commission recovery, and listing matches from one local command center.</p>
+      </div>
+      <div class="header-kpis" aria-label="Dashboard focus">
+        <span>ROI</span>
+        <span>Payback</span>
+        <span>Match review</span>
+      </div>
+    </header>
+
+    <main class="shell">
+      <div class="header-actions">
+        <span class="action-label">Workspace</span>
+        <button id="seedDemoBtn" class="ghost-btn" type="button">Load sample data</button>
+        <button id="exportBackupBtn" class="secondary-btn" type="button">Export backup</button>
+        <label class="secondary-btn file-btn">
+          Import backup
+          <input id="backupInput" type="file" accept="application/json" />
+        </label>
+      </div>
+
+      <nav class="tabs" aria-label="Dashboard sections">
+        <button class="tab active" data-tab="dashboard" type="button">Dashboard</button>
+        <button class="tab" data-tab="products" type="button">Products</button>
+        <button class="tab" data-tab="import" type="button">CSV Import</button>
+        <button class="tab" data-tab="matches" type="button">Match Review</button>
+        <button class="tab" data-tab="exports" type="button">Exports</button>
+        <button class="tab" data-tab="setup" type="button">Setup</button>
+      </nav>
+
+      <section id="dashboard" class="tab-panel active">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Command center</p>
+            <h2>Investment health</h2>
+          </div>
+          <p>Portfolio totals, monthly movement, and the products that need attention.</p>
+        </div>
+        <div class="metric-grid" id="metricGrid"></div>
+        <div class="dashboard-grid">
+          <section class="panel wide-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Monthly ROI Trend</h2>
+                <p>Commissions and net cash recovery by reporting month.</p>
+              </div>
+            </div>
+            <div id="trendChart" class="trend-chart" aria-label="Monthly revenue chart"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Top Winners</h2>
+                <p>Products with the strongest net profit.</p>
+              </div>
+            </div>
+            <div id="topWinners" class="ranking-list"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Needs Attention</h2>
+                <p>Largest unrecovered investments.</p>
+              </div>
+            </div>
+            <div id="laggards" class="ranking-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="products" class="tab-panel">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Products</p>
+            <h2>Investment ledger</h2>
+          </div>
+          <p>Search, filter, and update every item bought for content.</p>
+        </div>
+        <div class="toolbar">
+          <div class="search-wrap">
+            <span aria-hidden="true">Search</span>
+            <input id="productSearch" type="search" placeholder="Search title, brand, ASIN, category" />
+          </div>
+          <select id="statusFilter" aria-label="Filter by status"></select>
+          <select id="profitFilter" aria-label="Filter by profit status">
+            <option value="all">All ROI states</option>
+            <option value="purchased">Purchased products</option>
+            <option value="profitable">Profitable</option>
+            <option value="unrecovered">Unrecovered</option>
+            <option value="paidOff">Paid off</option>
+          </select>
+          <button id="newProductBtn" class="primary-btn" type="button">Add product</button>
+          <button id="newRevenueBtn" class="secondary-btn" type="button">Add revenue</button>
+        </div>
+        <section class="panel table-panel">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th><button class="sort-btn" data-sort="title" type="button">Product</button></th>
+                  <th><button class="sort-btn" data-sort="status" type="button">Status</button></th>
+                  <th><button class="sort-btn" data-sort="cost" type="button">Cost</button></th>
+                  <th><button class="sort-btn" data-sort="earned" type="button">Earned</button></th>
+                  <th><button class="sort-btn" data-sort="net" type="button">Net</button></th>
+                  <th><button class="sort-btn" data-sort="roi" type="button">ROI</button></th>
+                  <th>Payback</th>
+                  <th>Video</th>
+                  <th><button class="sort-btn" data-sort="purchaseDate" type="button">Bought</button></th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="productsTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="import" class="tab-panel">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Imports</p>
+            <h2>Revenue intake</h2>
+          </div>
+          <p>Map Amazon report columns before anything touches ROI.</p>
+        </div>
+        <section class="panel import-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>CSV Import Wizard</h2>
+              <p>Upload Amazon reporting rows, confirm the columns, then review exact, suggested, and unmatched revenue.</p>
+            </div>
+          </div>
+          <div class="import-drop">
+            <input id="csvInput" type="file" accept=".csv,text/csv" />
+            <div>
+              <strong>Choose a CSV file</strong>
+              <span>Supported rows can include ASIN, title, brand, date, commission earned, clicks, and orders.</span>
+            </div>
+          </div>
+          <div id="mappingWizard" class="mapping-wizard hidden"></div>
+          <div id="importSummary" class="import-summary"></div>
+        </section>
+      </section>
+
+      <section id="matches" class="tab-panel">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Review</p>
+            <h2>Suggested matches</h2>
+          </div>
+          <p>Approve only the listing relationships you trust.</p>
+        </div>
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Match Review Queue</h2>
+              <p>Suggested listing and variation matches stay out of ROI until approved.</p>
+            </div>
+          </div>
+          <div id="matchQueue" class="match-list"></div>
+        </section>
+      </section>
+
+      <section id="exports" class="tab-panel">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Exports</p>
+            <h2>Portable data</h2>
+          </div>
+          <p>Download backups and clean CSVs whenever you need them.</p>
+        </div>
+        <section class="panel export-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Exports</h2>
+              <p>Download clean CSVs for products, revenue rows, ROI summary, or full backup JSON.</p>
+            </div>
+          </div>
+          <div class="export-grid">
+            <button class="secondary-btn" data-export="products" type="button">Export products CSV</button>
+            <button class="secondary-btn" data-export="revenue" type="button">Export revenue CSV</button>
+            <button class="secondary-btn" data-export="summary" type="button">Export ROI summary CSV</button>
+            <button id="clearDataBtn" class="danger-btn" type="button">Clear all local data</button>
+          </div>
+        </section>
+      </section>
+
+      <section id="setup" class="tab-panel">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Setup</p>
+            <h2>Amazon capture tool</h2>
+          </div>
+          <p>Install the bookmarklet once, then reuse it on any Amazon product page.</p>
+        </div>
+        <section class="panel setup-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Send to AIP Dashboard</h2>
+              <p>This is a one-time setup step. You do not need a new bookmarklet for every product.</p>
+            </div>
+          </div>
+          <div class="setup-steps">
+            <article>
+              <strong>1. Copy the bookmarklet</strong>
+              <span>Click the button below to copy the helper code.</span>
+            </article>
+            <article>
+              <strong>2. Save it as a bookmark</strong>
+              <span>Create a browser bookmark named Send to AIP Dashboard and paste the copied text into the bookmark URL.</span>
+            </article>
+            <article>
+              <strong>3. Use it on Amazon</strong>
+              <span>Open an Amazon product page, click the bookmark, then paste or upload the captured JSON when adding a product.</span>
+            </article>
+          </div>
+          <div class="bookmarklet-card setup-bookmarklet-card">
+            <div>
+              <h4>Bookmarklet</h4>
+              <p>Copy this once and save it in your browser bookmarks bar.</p>
+            </div>
+            <div class="bookmarklet-actions">
+              <button id="copyBookmarkletBtn" class="secondary-btn" type="button">Copy bookmarklet</button>
+              <a id="bookmarkletLink" class="secondary-btn bookmarklet-link" href="#">Drag to bookmarks bar</a>
+            </div>
+            <details>
+              <summary>Show bookmarklet code</summary>
+              <textarea id="bookmarkletCode" readonly rows="3"></textarea>
+            </details>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="productDialog">
+      <form id="productForm" method="dialog" class="dialog-form">
+        <div class="dialog-heading">
+          <h2 id="productDialogTitle">Add product</h2>
+          <button class="icon-btn" value="cancel" type="submit" aria-label="Close">x</button>
+        </div>
+        <input id="productId" type="hidden" />
+        <section class="autofill-panel">
+          <div class="panel-heading compact-heading">
+            <div>
+              <h3>Import captured Amazon product</h3>
+              <p>Paste an ASIN, Amazon link, captured product JSON, saved page, or local import match.</p>
+            </div>
+          </div>
+          <div class="autofill-input-row">
+            <input id="amazonQuickInput" placeholder="ASIN or Amazon product link" />
+            <button id="extractAsinBtn" class="secondary-btn" type="button">Extract ASIN</button>
+            <button id="lookupImportsBtn" class="secondary-btn" type="button">Find in CSV/imports</button>
+          </div>
+          <div class="autofill-actions">
+            <label class="secondary-btn file-btn">
+              Upload screenshot
+              <input id="productScreenshotInput" type="file" accept="image/*" />
+            </label>
+            <label class="secondary-btn file-btn">
+              Upload saved page
+              <input id="productHtmlInput" type="file" accept=".html,.htm,text/html" />
+            </label>
+            <button id="applyAutofillBtn" class="primary-btn" type="button" disabled>Apply autofill</button>
+          </div>
+          <div class="capture-import">
+            <textarea id="amazonCaptureInput" rows="4" placeholder="Paste captured Amazon JSON here"></textarea>
+            <div class="autofill-actions">
+              <button id="parseCaptureBtn" class="secondary-btn" type="button">Import pasted capture</button>
+              <label class="secondary-btn file-btn">
+                Upload capture JSON
+                <input id="productCaptureInput" type="file" accept=".json,application/json" />
+              </label>
+            </div>
+          </div>
+          <div id="autofillPreview" class="autofill-preview">
+            <div class="muted">No suggestions yet. Nothing is written into the form until you apply it.</div>
+          </div>
+        </section>
+        <div class="form-grid">
+          <label>Title <input id="title" required /></label>
+          <label>Brand <input id="brand" /></label>
+          <label>ASIN <input id="asin" /></label>
+          <label>Category <input id="category" /></label>
+          <label>Purchase date <input id="purchaseDate" type="date" /></label>
+          <label>Status <select id="status"></select></label>
+          <label>Amazon link <input id="amazonLink" type="url" /></label>
+          <label>Storefront/product link <input id="storefrontLink" type="url" /></label>
+          <label>Video status <select id="videoStatus"></select></label>
+          <label>Purchase price <input id="purchasePrice" type="number" min="0" step="0.01" /></label>
+          <label>Tax <input id="tax" type="number" min="0" step="0.01" /></label>
+          <label>Shipping <input id="shipping" type="number" min="0" step="0.01" /></label>
+          <label>Discounts <input id="discounts" type="number" min="0" step="0.01" /></label>
+          <label>Refunds/returns <input id="refunds" type="number" min="0" step="0.01" /></label>
+          <label>Filmed date <input id="filmedDate" type="date" /></label>
+          <label>Posted date <input id="postedDate" type="date" /></label>
+        </div>
+        <section class="video-panel">
+          <div class="panel-heading compact-heading">
+            <div>
+              <h3>Videos</h3>
+              <p>Track each storefront video tied to this product.</p>
+            </div>
+            <button id="addVideoBtn" class="secondary-btn" type="button">Add video</button>
+          </div>
+          <div id="videoRows" class="video-rows"></div>
+        </section>
+        <label>Notes <textarea id="notes" rows="4"></textarea></label>
+        <div class="dialog-actions">
+          <button id="deleteProductBtn" class="danger-btn hidden" value="delete" type="button">Delete</button>
+          <span></span>
+          <button class="secondary-btn" value="cancel" type="submit">Cancel</button>
+          <button class="primary-btn" value="save" type="submit">Save product</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="revenueDialog">
+      <form id="revenueForm" method="dialog" class="dialog-form">
+        <div class="dialog-heading">
+          <h2>Add revenue</h2>
+          <button class="icon-btn" value="cancel" type="submit" aria-label="Close">x</button>
+        </div>
+        <div class="form-grid">
+          <label>Product <select id="revenueProduct"></select></label>
+          <label>Date <input id="revenueDate" type="date" required /></label>
+          <label>Commission/revenue <input id="revenueAmount" type="number" step="0.01" required /></label>
+          <label>ASIN <input id="revenueAsin" /></label>
+          <label>Title <input id="revenueTitle" /></label>
+          <label>Brand <input id="revenueBrand" /></label>
+          <label>Clicks <input id="revenueClicks" type="number" min="0" step="1" /></label>
+          <label>Orders <input id="revenueOrders" type="number" min="0" step="1" /></label>
+        </div>
+        <div class="dialog-actions">
+          <span></span>
+          <button class="secondary-btn" value="cancel" type="submit">Cancel</button>
+          <button class="primary-btn" value="save" type="submit">Save revenue</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./node_modules/tesseract.js/dist/tesseract.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
