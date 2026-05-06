@@ -23,19 +23,9 @@ cd YOUR_REPOSITORY_FOLDER
 
 Replace `YOUR_REPOSITORY_URL` with the GitHub link for this project.
 
-## Install Dependencies
-
-Run this once inside the dashboard folder:
-
-```powershell
-npm.cmd install --cache .\.npm-cache --ignore-scripts
-```
-
-This installs the local files needed by the dashboard.
-
-Do not upload or commit `node_modules`, `.npm-cache`, or `tessdata` to GitHub.
-
 ## Start the Dashboard
+
+No dependency install is needed.
 
 On Windows, double-click:
 

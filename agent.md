@@ -6,11 +6,11 @@
 - The user prefers a non-technical, practical workflow and wants the app to feel like a clean finance dashboard rather than a marketing page.
 
 ## Current Implementation
-- The app is intentionally dependency-light: static `index.html`, `styles.css`, `app.js`, plus `server.js` for local serving.
-- Tesseract.js is now installed as a local npm dependency for screenshot OCR.
+- The app is dependency-free: static `index.html`, `styles.css`, `app.js`, plus `server.js` for local serving.
+- Tesseract/screenshot OCR was removed because the Amazon bookmarklet capture workflow is more reliable and simpler for GitHub users.
 - Data is stored locally in the browser with IndexedDB.
 - Run from this folder with `node server.js`, then open `http://127.0.0.1:4173/`.
-- There is no git repository initialized in this folder at the time of writing.
+- The project has been pushed to GitHub at `https://github.com/Noah-your-go-to-guy/AIP-investment-dashboard-tracker`.
 
 ## Core Product Decisions
 - One investment record equals one bought product.
@@ -46,20 +46,16 @@
   - The bookmarklet is generated in the dedicated `Setup` tab, runs on Amazon product pages, reads the DOM directly, then copies or downloads a JSON payload.
   - The dashboard can paste/upload that JSON and turn it into confidence-labeled autofill suggestions for ASIN, Amazon link, title, brand, category, and purchase price.
   - Upload saved Amazon product page HTML and parse visible title, brand, category breadcrumbs, price, and ASIN-like identifiers.
-  - Upload product screenshot and run Tesseract.js OCR in the browser.
   - Search local imported CSV/raw rows and existing saved products for matching ASIN/title/brand details.
 - Autofill suggestions must be confidence-labeled: exact, likely, weak, or manual.
 - Autofill must not overwrite user-entered fields until the user clicks `Apply autofill`.
-- Screenshot OCR uses the local Tesseract.js engine and downloads/caches English language data on first use.
-- Screenshot OCR should now be treated as a fallback, not the main product-entry path. In testing, full-page Amazon screenshots produced noisy results because OCR cannot reliably distinguish product title/brand/price from sidebar text, buttons, ads, and promos.
 - The implemented primary no-API autofill path is an Amazon page extractor/bookmarklet:
   - User opens an Amazon product page.
   - User clicks a saved browser bookmark/action such as `Send to AIP Dashboard`.
   - The script reads DOM fields directly from the product page, including title, byline/brand, price, breadcrumbs/category, ASIN, canonical link, and possibly image URL.
   - The script copies or downloads a small JSON payload.
   - The dashboard imports/applies that JSON with confidence labels.
-- Saved HTML upload should remain the second-best reliable method and should be improved before investing more in screenshot OCR.
-- Screenshot OCR should remain available only as a rough fallback, ideally with guidance to upload cropped screenshots focused on the title/price/byline area.
+- Saved HTML upload should remain the second-best reliable method after bookmarklet JSON capture.
 
 ## Design Constraints
 - Keep the top layout stable: hero/header, backup/sample action row, and sticky tabs must not overlap.
@@ -83,11 +79,10 @@
 - A JS-to-HTML ID consistency check found no missing static element references.
 
 ## Future Work Ideas
-- Create a non-technical how-to setup document later, once the dashboard is more settled. It should explain how to run the local dashboard, install/use the `Send to AIP Dashboard` bookmarklet, import Amazon product captures, back up data, and share the dashboard method with other users.
+- `HOW_TO_SETUP.md` is the non-technical setup document. Keep it updated as setup changes.
 - The how-to doc must clearly explain the correct workflow order: add/capture the investment product before uploading earnings CSVs. If the product is not in the dashboard first, imported income may stay unmatched or require review instead of counting toward that product's earnings.
 - Add a one-click local receiver endpoint later if browser security allows a smooth localhost handoff; clipboard/download JSON is the reliable current method.
 - Improve saved Amazon HTML parsing for title, byline/brand, price, breadcrumbs/category, ASIN, and image URL.
-- Keep screenshot OCR as fallback only; consider crop-zone UI if OCR remains useful later.
 - Add a product image field and render thumbnails in the product table.
 - Add better monthly import reconciliation if Amazon reporting formats become consistent.
 - Add duplicate product warnings when a new ASIN/title is already tracked.

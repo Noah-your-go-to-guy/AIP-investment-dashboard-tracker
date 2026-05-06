@@ -155,7 +155,6 @@ function bindEvents() {
   $("#parseCaptureBtn").addEventListener("click", handleCapturePaste);
   $("#productCaptureInput").addEventListener("change", handleCaptureUpload);
   $("#productHtmlInput").addEventListener("change", handleHtmlUpload);
-  $("#productScreenshotInput").addEventListener("change", handleScreenshotUpload);
   $("#applyAutofillBtn").addEventListener("click", applyAutofillSuggestion);
   hydrateBookmarkletControls();
 }
@@ -529,7 +528,6 @@ function resetAutofillHelper() {
   $("#amazonCaptureInput").value = "";
   $("#productCaptureInput").value = "";
   $("#productHtmlInput").value = "";
-  $("#productScreenshotInput").value = "";
   $("#applyAutofillBtn").disabled = true;
   $("#autofillPreview").innerHTML = `<div class="muted">No suggestions yet. Nothing is written into the form until you apply it.</div>`;
 }
@@ -617,78 +615,6 @@ async function handleHtmlUpload(event) {
   setAutofillSuggestion(suggestion, "Saved Amazon page parsed.");
 }
 
-async function handleScreenshotUpload(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  const imageUrl = URL.createObjectURL(file);
-  const suggestion = createAutofillSuggestion("Screenshot upload", {}, {
-    imageUrl,
-    note: "Screenshot preview saved. OCR is starting.",
-  });
-  setAutofillSuggestion(suggestion, "Screenshot added. OCR is starting.");
-
-  if (window.location.protocol === "file:") {
-    suggestion.note =
-      "OCR needs the local server version of the dashboard. Open this project folder and run start-dashboard.cmd, then use http://127.0.0.1:4173/ instead of the file:// page.";
-    setAutofillSuggestion(suggestion, "Open the dashboard through the local server to use OCR.");
-    return;
-  }
-
-  const tesseract = await loadTesseract();
-  if (!tesseract?.createWorker) {
-    suggestion.note =
-      "Screenshot preview saved, but Tesseract.js did not load from node_modules. Make sure you started the dashboard with start-dashboard.cmd after dependencies were installed.";
-    setAutofillSuggestion(suggestion, "Tesseract.js did not load.");
-    return;
-  }
-
-  let worker;
-  try {
-    worker = await tesseract.createWorker("eng", 1, {
-      workerPath: "./node_modules/tesseract.js/dist/worker.min.js",
-      corePath: "./node_modules/tesseract.js-core",
-      langPath: "https://tessdata.projectnaptha.com/4.0.0_fast",
-      logger: (message) => updateOcrProgress(message, suggestion),
-    });
-    const result = await worker.recognize(file);
-    const text = result?.data?.text || "";
-    Object.assign(suggestion.fields, guessProductFieldsFromText(text).fields);
-    suggestion.ocrText = text;
-    suggestion.note = text.trim()
-      ? "OCR finished. Review the detected fields before applying."
-      : "OCR finished but did not find readable text. Try a larger, sharper screenshot or upload the saved page HTML.";
-    setAutofillSuggestion(suggestion, text.trim() ? "OCR finished." : "OCR found no readable text.");
-  } catch (error) {
-    suggestion.note = `OCR could not complete: ${error.message || error}. Try saved page upload if this keeps happening.`;
-    setAutofillSuggestion(suggestion, "OCR could not complete.");
-  } finally {
-    if (worker) await worker.terminate();
-  }
-}
-
-async function loadTesseract() {
-  if (window.Tesseract?.createWorker) return window.Tesseract;
-  try {
-    const module = await import("./node_modules/tesseract.js/dist/tesseract.esm.min.js");
-    const tesseract = module.default || module;
-    if (tesseract?.createWorker) {
-      window.Tesseract = tesseract;
-      return tesseract;
-    }
-  } catch (error) {
-    return null;
-  }
-  return null;
-}
-
-function updateOcrProgress(message, suggestion) {
-  if (!message?.status) return;
-  const pct = typeof message.progress === "number" ? ` ${Math.round(message.progress * 100)}%` : "";
-  suggestion.note = `OCR ${message.status}${pct}`;
-  state.autofillSuggestion = suggestion;
-  renderAutofillPreview();
-}
-
 function setAutofillSuggestion(suggestion, message) {
   state.autofillSuggestion = suggestion;
   renderAutofillPreview();
@@ -716,9 +642,8 @@ function renderAutofillPreview() {
       <strong>${escapeHtml(suggestion.source)}</strong>
       ${suggestion.note ? `<p class="muted">${escapeHtml(suggestion.note)}</p>` : ""}
     </div>
-    ${suggestion.imageUrl ? `<img class="screenshot-preview" src="${suggestion.imageUrl}" alt="Uploaded product screenshot preview" />` : ""}
     ${fieldsHtml}
-    ${suggestion.ocrText ? `<details class="ocr-text"><summary>Show OCR text</summary><pre>${escapeHtml(suggestion.ocrText)}</pre></details>` : ""}`;
+    `;
 }
 
 function applyAutofillSuggestion(options = {}) {
@@ -1354,27 +1279,6 @@ function parseAmazonHtml(html) {
   }
   if (!fields.category && title) fields.category = { value: guessCategory(title), confidence: "weak" };
   return createAutofillSuggestion("Saved Amazon page", fields);
-}
-
-function guessProductFieldsFromText(text = "") {
-  const asin = extractAsinFromInput(text);
-  const price = parseMoney(findTextByPattern(text, /\$[\d,]+(?:\.\d{2})?/));
-  const lines = String(text)
-    .split(/\n+/)
-    .map(cleanText)
-    .filter((line) => line.length > 12 && !/sponsored|search|cart|ratings?|reviews?/i.test(line));
-  const title = lines.sort((a, b) => b.length - a.length)[0] || "";
-  const brand = findTextByPattern(text, /(?:Brand|Visit the)\s+([A-Z][A-Za-z0-9 &'-]{2,60})(?:\s+Store)?/i);
-  const fields = {};
-  if (asin) {
-    fields.asin = { value: asin, confidence: "exact" };
-    fields.amazonLink = { value: `https://www.amazon.com/dp/${asin}`, confidence: "exact" };
-  }
-  if (title) fields.title = { value: title, confidence: "weak" };
-  if (brand) fields.brand = { value: cleanText(brand), confidence: "weak" };
-  if (price) fields.purchasePrice = { value: price, confidence: "weak" };
-  if (title) fields.category = { value: guessCategory(title), confidence: "weak" };
-  return createAutofillSuggestion("Screenshot OCR", fields);
 }
 
 function findProductDetailsFromImports(query) {

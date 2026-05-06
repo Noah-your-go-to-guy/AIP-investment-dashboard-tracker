@@ -33,33 +33,13 @@ The dashboard folder should include files like:
 - `app.js`
 - `styles.css`
 - `server.js`
-- `package.json`
-- `package-lock.json`
 - `start-dashboard.cmd`
 - `README.md`
 - `HOW_TO_SETUP.md`
 
-It should not need to include:
+There is no dependency install step.
 
-- `node_modules`
-- `.npm-cache`
-- `tessdata`
-
-Those are installed locally on each computer.
-
-## 3. Install Dependencies
-
-Open PowerShell inside the dashboard folder.
-
-Run this once:
-
-```powershell
-npm.cmd install --cache .\.npm-cache --ignore-scripts
-```
-
-This installs the local files the dashboard needs.
-
-## 4. Start the Dashboard
+## 3. Start the Dashboard
 
 The easiest way on Windows is to double-click:
 
@@ -81,7 +61,7 @@ http://127.0.0.1:4173/
 
 Important: use the `http://127.0.0.1:4173/` version, not the `file:///.../index.html` version.
 
-## 5. Set Up the Amazon Bookmarklet
+## 4. Set Up the Amazon Bookmarklet
 
 You only do this once.
 
@@ -102,13 +82,13 @@ Send to AIP Dashboard
 
 You can now reuse this same bookmark for every Amazon product page.
 
-## 6. Add Products Before Uploading Earnings CSVs
+## 5. Add Products Before Uploading Earnings CSVs
 
 Important: add the product to the dashboard before uploading earnings CSVs.
 
 If the product is not in the dashboard first, imported earnings may stay unmatched or go to review instead of counting toward that product.
 
-## 7. Add a Product From Amazon
+## 6. Add a Product From Amazon
 
 1. Open the Amazon product page.
 2. Click your `Send to AIP Dashboard` bookmark.
@@ -129,7 +109,7 @@ If the product is not in the dashboard first, imported earnings may stay unmatch
 12. Set the product status.
 13. Click `Save product`.
 
-## 8. Track Videos
+## 7. Track Videos
 
 Inside a product, use the `Videos` section to add each video.
 
@@ -140,7 +120,7 @@ For each video, add:
 - Posted date
 - Notes
 
-## 9. Upload Weekly Earnings CSVs
+## 8. Upload Weekly Earnings CSVs
 
 After your products are in the dashboard, you can upload earnings CSVs.
 
@@ -158,7 +138,7 @@ Example:
 - Week 2 product earnings: `$20`
 - Lifetime product earnings: `$35`
 
-## 10. Review Matches
+## 9. Review Matches
 
 Some imported rows may not match perfectly.
 
@@ -168,7 +148,7 @@ Title-based or fuzzy matches go to `Match Review`.
 
 In `Match Review`, approve only the matches you trust. Approved matches will count automatically in future CSV uploads.
 
-## 11. Check Payback
+## 10. Check Payback
 
 In the Products table, each product has a payback bar.
 
@@ -176,7 +156,7 @@ The payback bar shows how much of your product cost has been earned back through
 
 The dashboard uses commission earned only for ROI.
 
-## 12. Avoid Duplicate CSV Income
+## 11. Avoid Duplicate CSV Income
 
 The dashboard protects against duplicate imported earnings rows.
 
@@ -188,7 +168,7 @@ report date + ASIN + title + commission amount
 
 If you accidentally upload the same weekly CSV twice, duplicate rows should be skipped.
 
-## 13. Back Up Your Data
+## 12. Back Up Your Data
 
 The dashboard stores data locally in your browser.
 
