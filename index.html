@@ -151,6 +151,22 @@
           </div>
           <div id="mappingWizard" class="mapping-wizard hidden"></div>
           <div id="importSummary" class="import-summary"></div>
+          <section class="import-history-panel">
+            <div class="panel-heading compact-heading">
+              <div>
+                <h3>CSV import history</h3>
+                <p>Use this to confirm whether a weekly earnings file has already been uploaded.</p>
+              </div>
+            </div>
+            <div id="importHistory" class="import-history-list"></div>
+          </section>
+          <div class="import-maintenance">
+            <div>
+              <strong>Need to re-upload CSVs?</strong>
+              <span>Clear imported CSV revenue and import history without deleting your products.</span>
+            </div>
+            <button id="clearImportedRevenueBtn" class="danger-btn" type="button">Clear CSV imports</button>
+          </div>
         </section>
       </section>
 
@@ -158,18 +174,39 @@
         <div class="section-title">
           <div>
             <p class="eyebrow">Review</p>
-            <h2>Suggested matches</h2>
+            <h2>Revenue match review</h2>
           </div>
-          <p>Approve only the listing relationships you trust.</p>
+          <p>Search imported rows, then approve or manually attach the ones that belong to your products.</p>
         </div>
         <section class="panel">
           <div class="panel-heading">
             <div>
               <h2>Match Review Queue</h2>
-              <p>Suggested listing and variation matches stay out of ROI until approved.</p>
+              <p>Suggested and unmatched listing rows stay out of ROI until approved or assigned.</p>
+            </div>
+          </div>
+          <div class="match-toolbar">
+            <div class="search-wrap">
+              <span aria-hidden="true">Search</span>
+              <input id="matchSearch" type="search" placeholder="Search imported title, ASIN, brand, or product" />
             </div>
           </div>
           <div id="matchQueue" class="match-list"></div>
+        </section>
+        <section class="panel revenue-audit-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>All imported revenue rows</h2>
+              <p>Use this when a product total looks wrong. Search a product name or ASIN, then see where every imported row went.</p>
+            </div>
+          </div>
+          <div class="match-toolbar">
+            <div class="search-wrap">
+              <span aria-hidden="true">Search</span>
+              <input id="revenueAuditSearch" type="search" placeholder="Search all imported revenue rows" />
+            </div>
+          </div>
+          <div id="revenueAudit" class="match-list"></div>
         </section>
       </section>
 

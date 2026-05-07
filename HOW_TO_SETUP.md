@@ -1,10 +1,26 @@
 # AIP Investment Dashboard Setup Guide
 
-This guide explains how to install the dashboard from GitHub, run it on your own computer, and start tracking Amazon Influencer product investments.
+This guide explains how to get the dashboard from GitHub, run it on your own computer, capture Amazon products, and upload weekly earnings CSVs.
+
+The dashboard is local-first. Your product costs, CSV income, matches, and notes are stored in your own browser on your own computer.
+
+## Quick Overview
+
+Use this order:
+
+1. Download the dashboard from GitHub.
+2. Start it with `start-dashboard.cmd`.
+3. Open `http://127.0.0.1:4173/`.
+4. Set up the Amazon bookmarklet one time.
+5. Add products before uploading earnings CSVs.
+6. Upload weekly CSVs and map income to `Commission earned`.
+7. Review suggested matches.
+8. Check payback and ROI.
+9. Export backups regularly.
 
 ## 1. Get the Dashboard From GitHub
 
-You can install it two ways.
+You can get the dashboard two ways.
 
 ### Option A: Download ZIP
 
@@ -13,17 +29,16 @@ You can install it two ways.
 3. Click `Download ZIP`.
 4. Unzip the downloaded file.
 5. Move the unzipped folder somewhere easy to find, like your Desktop.
+6. Open the dashboard folder.
 
 ### Option B: Clone With Git
 
 If you use Git, open PowerShell and run:
 
 ```powershell
-git clone YOUR_REPOSITORY_URL
-cd YOUR_REPOSITORY_FOLDER
+git clone https://github.com/Noah-your-go-to-guy/AIP-investment-dashboard-tracker.git
+cd AIP-investment-dashboard-tracker
 ```
-
-Replace `YOUR_REPOSITORY_URL` with the GitHub link for the dashboard.
 
 ## 2. Check the Folder
 
@@ -37,7 +52,7 @@ The dashboard folder should include files like:
 - `README.md`
 - `HOW_TO_SETUP.md`
 
-There is no dependency install step.
+There is no dependency install step. You do not need to run `npm install`.
 
 ## 3. Start the Dashboard
 
@@ -61,9 +76,11 @@ http://127.0.0.1:4173/
 
 Important: use the `http://127.0.0.1:4173/` version, not the `file:///.../index.html` version.
 
+The `http://127.0.0.1:4173/` address is still only running on your computer. It is not public. It just gives the browser a normal local web app address so imports, backups, and storage behave more reliably.
+
 ## 4. Set Up the Amazon Bookmarklet
 
-You only do this once.
+You only do this once. Do not make a new bookmark for every product.
 
 1. Open the dashboard.
 2. Click the `Setup` tab.
@@ -71,12 +88,7 @@ You only do this once.
 4. Show your browser bookmarks bar with `Ctrl + Shift + B`.
 5. Right-click the bookmarks bar.
 6. Choose `Add page` or `Add bookmark`.
-7. Name the bookmark:
-
-```text
-Send to AIP Dashboard
-```
-
+7. Name the bookmark `Send to AIP Dashboard`.
 8. Paste the copied bookmarklet into the bookmark URL field.
 9. Save the bookmark.
 
@@ -100,22 +112,17 @@ If the product is not in the dashboard first, imported earnings may stay unmatch
 8. Click `Import pasted capture`.
 9. Click `Apply autofill`.
 10. Review the product details.
-11. Add your real cost details:
-    - Purchase price
-    - Tax
-    - Shipping
-    - Discounts
-    - Refunds/returns
+11. Add your real cost details: purchase price, tax, shipping, discounts, and refunds/returns.
 12. Set the product status.
 13. Click `Save product`.
 
 ## 7. Track Videos
 
-Inside a product, use the `Videos` section to add each video.
+Inside a product, use the `Videos` section to add each video separately.
 
 For each video, add:
 
-- Video title/name
+- Video title or name
 - Video link
 - Posted date
 - Notes
@@ -180,17 +187,13 @@ Save the backup somewhere safe, especially before:
 - Moving computers
 - Making big changes
 
-## Simple Workflow
+## Simple Weekly Workflow
 
-Use this order:
+Most weeks, the process should be:
 
-1. Install from GitHub.
-2. Start dashboard.
-3. Set up bookmarklet once.
-4. Add product from Amazon.
-5. Save product cost details.
-6. Add videos as you make them.
-7. Upload weekly earnings CSVs.
-8. Review suggested matches.
-9. Check payback and ROI.
-10. Export backup.
+1. Add any new products you bought.
+2. Add video links or posted dates for products you filmed.
+3. Upload the newest earnings CSV.
+4. Review any suggested matches.
+5. Check payback and ROI.
+6. Export a backup.

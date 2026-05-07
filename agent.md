@@ -7,9 +7,13 @@
 
 ## Current Implementation
 - The app is dependency-free: static `index.html`, `styles.css`, `app.js`, plus `server.js` for local serving.
+- There is no `npm install` dependency step anymore, but users still need Node.js installed so `server.js` and `start-dashboard.cmd` can run.
 - Tesseract/screenshot OCR was removed because the Amazon bookmarklet capture workflow is more reliable and simpler for GitHub users.
 - Data is stored locally in the browser with IndexedDB.
 - Run from this folder with `node server.js`, then open `http://127.0.0.1:4173/`.
+- On Windows, most users should start it by double-clicking `start-dashboard.cmd`, then opening `http://127.0.0.1:4173/`.
+- `start-dashboard.cmd` should work for other Windows users after they download/unzip the repo, as long as Node.js is installed and available on PATH.
+- Mac/Linux users will need a different starter script or can run `node server.js` from Terminal.
 - The project has been pushed to GitHub at `https://github.com/Noah-your-go-to-guy/AIP-investment-dashboard-tracker`.
 
 ## Core Product Decisions
@@ -80,7 +84,10 @@
 
 ## Future Work Ideas
 - `HOW_TO_SETUP.md` is the non-technical setup document. Keep it updated as setup changes.
+- `AIP_Dashboard_Setup_Guide.docx` is the Word version of the setup guide for sharing with less technical users.
+- Before sharing widely, setup docs should clearly say users need Node.js installed first, then they can use `start-dashboard.cmd` on Windows.
 - The how-to doc must clearly explain the correct workflow order: add/capture the investment product before uploading earnings CSVs. If the product is not in the dashboard first, imported income may stay unmatched or require review instead of counting toward that product's earnings.
+- Consider adding a Mac starter file later so non-Windows users have an equally simple launch path.
 - Add a one-click local receiver endpoint later if browser security allows a smooth localhost handoff; clipboard/download JSON is the reliable current method.
 - Improve saved Amazon HTML parsing for title, byline/brand, price, breadcrumbs/category, ASIN, and image URL.
 - Add a product image field and render thumbnails in the product table.

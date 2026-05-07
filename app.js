@@ -29,6 +29,8 @@ let state = {
   profitFilter: "all",
   sortKey: "net",
   sortDirection: "desc",
+  matchSearch: "",
+  revenueAuditSearch: "",
   pendingCsv: null,
   autofillSuggestion: null,
 };
@@ -41,6 +43,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   populateStatusControls();
   bindEvents();
   await refreshState();
+  await repairExactTitleRevenueMatches();
   render();
 });
 
@@ -106,6 +109,24 @@ async function refreshState() {
   state.importBatches = importBatches;
 }
 
+async function repairExactTitleRevenueMatches() {
+  let fixed = 0;
+  for (const entry of state.revenueEntries) {
+    if (entry.productId || entry.matchStatus === "rejected") continue;
+    const titleProduct = findExactTitleProduct(entry);
+    if (!titleProduct) continue;
+    await put("revenueEntries", {
+      ...entry,
+      productId: titleProduct.id,
+      suggestedProductId: "",
+      matchStatus: "exact",
+      matchScore: 1,
+    });
+    fixed += 1;
+  }
+  if (fixed) await refreshState();
+}
+
 function bindEvents() {
   $$(".tab").forEach((button) => {
     button.addEventListener("click", () => switchTab(button.dataset.tab));
@@ -132,6 +153,14 @@ function bindEvents() {
     state.profitFilter = event.target.value;
     renderProducts();
   });
+  $("#matchSearch").addEventListener("input", (event) => {
+    state.matchSearch = event.target.value.trim().toLowerCase();
+    renderMatchQueue();
+  });
+  $("#revenueAuditSearch").addEventListener("input", (event) => {
+    state.revenueAuditSearch = event.target.value.trim().toLowerCase();
+    renderRevenueAudit();
+  });
   $$(".sort-btn").forEach((button) => {
     button.addEventListener("click", () => {
       const key = button.dataset.sort;
@@ -148,6 +177,7 @@ function bindEvents() {
   $("#exportBackupBtn").addEventListener("click", exportBackup);
   $("#backupInput").addEventListener("change", importBackup);
   $("#clearDataBtn").addEventListener("click", clearAllData);
+  $("#clearImportedRevenueBtn").addEventListener("click", clearImportedRevenue);
   $("#seedDemoBtn").addEventListener("click", seedDemoData);
   $("#extractAsinBtn").addEventListener("click", handleExtractAsin);
   $("#lookupImportsBtn").addEventListener("click", handleImportLookup);
@@ -178,8 +208,10 @@ function render() {
   renderTrendChart();
   renderRankings();
   renderProducts();
+  renderImportHistory();
   renderRevenueProductOptions();
   renderMatchQueue();
+  renderRevenueAudit();
 }
 
 function getProductStats(product) {
@@ -504,6 +536,7 @@ async function handleProductSubmit(event) {
   await put("products", product);
   $("#productDialog").close();
   await refreshState();
+  await repairExactTitleRevenueMatches();
   render();
   toast("Product saved.");
 }
@@ -666,11 +699,19 @@ function openRevenueDialog(productId = "") {
 }
 
 function renderRevenueProductOptions() {
-  $("#revenueProduct").innerHTML =
+  $("#revenueProduct").innerHTML = productSelectOptions();
+}
+
+function productSelectOptions(selectedProductId = "") {
+  return (
     `<option value="">Leave unmatched</option>` +
     state.products
-      .map((product) => `<option value="${product.id}">${escapeHtml(product.title || product.asin || "Untitled product")}</option>`)
-      .join("");
+      .map((product) => {
+        const selected = product.id === selectedProductId ? " selected" : "";
+        return `<option value="${product.id}"${selected}>${escapeHtml(product.title || product.asin || "Untitled product")}</option>`;
+      })
+      .join("")
+  );
 }
 
 async function handleRevenueSubmit(event) {
@@ -707,13 +748,14 @@ async function handleCsvSelection(event) {
     toast("That CSV did not contain readable rows.");
     return;
   }
-  state.pendingCsv = { fileName: file.name, rows };
+  state.pendingCsv = { fileName: file.name, rows, fallbackDate: inferReportDateFromFileName(file.name) };
   renderMappingWizard(file.name, rows);
 }
 
 function renderMappingWizard(fileName, rows) {
   const headers = Object.keys(rows[0]);
   const guesses = guessMappings(headers);
+  const fallbackDate = state.pendingCsv?.fallbackDate || "";
   const options = [OPTIONAL_MAPPING, ...headers]
     .map((header) => `<option value="${escapeHtml(header)}">${escapeHtml(header)}</option>`)
     .join("");
@@ -722,6 +764,12 @@ function renderMappingWizard(fileName, rows) {
     <div>
       <h3>${escapeHtml(fileName)}</h3>
       <p class="muted">${rows.length} rows found. Confirm the column meanings before import.</p>
+      <p class="muted"><strong>Preview only:</strong> the table below shows the first 5 rows, but all ${rows.length} rows will be imported.</p>
+      ${
+        fallbackDate
+          ? `<p class="muted">Report date detected from filename: <strong>${escapeHtml(fallbackDate)}</strong></p>`
+          : `<p class="muted">No report date found in the file. Rows will use today's date unless you map a date column.</p>`
+      }
     </div>
     <div class="mapping-grid">
       ${IMPORT_FIELDS.map(
@@ -756,6 +804,7 @@ async function runImport() {
     fileName: state.pendingCsv.fileName,
     createdAt: new Date().toISOString(),
     mapping,
+    reportDate: state.pendingCsv.fallbackDate || "",
     rowCount: state.pendingCsv.rows.length,
     rawRows: state.pendingCsv.rows,
   };
@@ -764,7 +813,7 @@ async function runImport() {
   const importedFingerprints = new Set(state.revenueEntries.map(revenueFingerprint).filter(Boolean));
   const summary = { exact: 0, approved: 0, suggested: 0, unmatched: 0, lookupOnly: 0, duplicate: 0 };
   for (const row of state.pendingCsv.rows) {
-    const normalized = normalizeImportRow(row, mapping);
+    const normalized = normalizeImportRow(row, mapping, state.pendingCsv.fallbackDate);
     if (!normalized.amount) {
       summary.lookupOnly += 1;
       continue;
@@ -788,12 +837,16 @@ async function runImport() {
       ...match,
     });
   }
+  batch.summary = summary;
+  await put("importBatches", batch);
   state.pendingCsv = null;
   $("#csvInput").value = "";
   $("#mappingWizard").classList.add("hidden");
   $("#mappingWizard").innerHTML = "";
   $("#importSummary").innerHTML = `<article class="rank-card">
     <strong>Import complete</strong>
+    <span>Money column: ${escapeHtml(mapping.amount || "Not mapped")} · Report date: ${escapeHtml(batch.reportDate || "mapped/default")}</span>
+    <span>Rows found: ${batch.rowCount} · Rows imported: ${summary.exact + summary.approved + summary.suggested + summary.unmatched} · Empty/no earnings skipped: ${summary.lookupOnly}</span>
     <span>Exact: ${summary.exact} · Approved: ${summary.approved} · Suggested: ${summary.suggested} · Unmatched: ${summary.unmatched} · Duplicates skipped: ${summary.duplicate}</span>
   </article>`;
   await refreshState();
@@ -801,7 +854,36 @@ async function runImport() {
   toast("CSV import complete.");
 }
 
-function normalizeImportRow(row, mapping) {
+function renderImportHistory() {
+  const target = $("#importHistory");
+  if (!target) return;
+  const batches = [...state.importBatches].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (!batches.length) {
+    target.innerHTML = emptyState("No CSV files imported yet.", "Uploaded weekly earnings files will show here.");
+    return;
+  }
+  target.innerHTML = batches
+    .map((batch) => {
+      const importedRows = state.revenueEntries.filter((entry) => entry.importBatchId === batch.id).length;
+      const duplicateCount = numberValue(batch.summary?.duplicate);
+      return `<article class="import-history-card">
+        <div>
+          <strong>${escapeHtml(batch.fileName || "Imported CSV")}</strong>
+          <span>${escapeHtml(formatDateTime(batch.createdAt))}</span>
+        </div>
+        <dl>
+          <div><dt>Report date</dt><dd>${escapeHtml(batch.reportDate || "Mapped/default")}</dd></div>
+          <div><dt>Money column</dt><dd>${escapeHtml(batch.mapping?.amount || "Not mapped")}</dd></div>
+          <div><dt>Rows found</dt><dd>${numberValue(batch.rowCount)}</dd></div>
+          <div><dt>Rows imported</dt><dd>${importedRows}</dd></div>
+          <div><dt>Duplicates skipped</dt><dd>${duplicateCount}</dd></div>
+        </dl>
+      </article>`;
+    })
+    .join("");
+}
+
+function normalizeImportRow(row, mapping, fallbackDate = "") {
   const pick = (key) => (mapping[key] && mapping[key] !== OPTIONAL_MAPPING ? row[mapping[key]] || "" : "");
   return {
     asin: normalizeAsin(pick("asin")),
@@ -809,7 +891,7 @@ function normalizeImportRow(row, mapping) {
     brand: pick("brand").trim(),
     category: pick("category").trim(),
     price: parseMoney(pick("price")),
-    date: normalizeDate(pick("date")) || new Date().toISOString().slice(0, 10),
+    date: normalizeDate(pick("date")) || fallbackDate || new Date().toISOString().slice(0, 10),
     amount: parseMoney(pick("amount")),
     clicks: numberValue(pick("clicks")),
     orders: numberValue(pick("orders")),
@@ -833,6 +915,9 @@ function findMatch(row) {
   const exact = row.asin ? state.products.find((product) => product.asin && product.asin === row.asin) : null;
   if (exact) return { productId: exact.id, suggestedProductId: "", matchStatus: "exact", matchScore: 1 };
 
+  const exactTitle = findExactTitleProduct(row);
+  if (exactTitle) return { productId: exactTitle.id, suggestedProductId: "", matchStatus: "exact", matchScore: 1 };
+
   const approved = state.approvedMatches.find((match) => {
     const asinHit = row.asin && match.asin === row.asin;
     const titleHit = normalizeText(match.title) && normalizeText(match.title) === normalizeText(row.title);
@@ -840,38 +925,77 @@ function findMatch(row) {
   });
   if (approved) return { productId: approved.productId, suggestedProductId: "", matchStatus: "approved", matchScore: 1 };
 
-  const suggestions = state.products
-    .map((product) => ({ product, score: fuzzyScore(row, product) }))
-    .filter((item) => item.score >= 0.48)
-    .sort((a, b) => b.score - a.score);
-  if (suggestions[0]) {
+  const best = bestProductMatch(row);
+  if (best?.score >= 0.48) {
     return {
       productId: "",
-      suggestedProductId: suggestions[0].product.id,
+      suggestedProductId: best.product.id,
       matchStatus: "suggested",
-      matchScore: suggestions[0].score,
+      matchScore: best.score,
     };
   }
-  return { productId: "", suggestedProductId: "", matchStatus: "unmatched", matchScore: 0 };
+  return { productId: "", suggestedProductId: best?.product?.id || "", matchStatus: "unmatched", matchScore: best?.score || 0 };
+}
+
+function findExactTitleProduct(row) {
+  const rowTitle = normalizeText(row.title);
+  if (!rowTitle) return null;
+  return state.products.find((product) => normalizeText(product.title) === rowTitle) || null;
+}
+
+function bestProductMatch(row) {
+  return state.products
+    .map((product) => ({ product, score: fuzzyScore(row, product) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)[0];
 }
 
 function fuzzyScore(row, product) {
-  const brandScore = row.brand && product.brand && normalizeText(row.brand) === normalizeText(product.brand) ? 0.35 : 0;
-  const titleScore = tokenSimilarity(row.title, product.title) * 0.55;
+  const brandScore = brandMatchScore(row, product);
+  const titleScore = tokenSimilarity(row.title, product.title) * 0.62;
   const asinPenalty = row.asin && product.asin && row.asin !== product.asin ? -0.03 : 0;
   const categoryBoost = row.title && product.category && normalizeText(row.title).includes(normalizeText(product.category)) ? 0.04 : 0;
   return Math.max(0, brandScore + titleScore + categoryBoost + asinPenalty);
 }
 
+function brandMatchScore(row, product) {
+  const importedBrand = normalizeText(row.brand);
+  const productBrand = normalizeText(product.brand);
+  if (importedBrand && productBrand && importedBrand === productBrand) return 0.35;
+  const importedTitleBrand = likelyTitleBrand(row.title);
+  const productTitleBrand = likelyTitleBrand(product.title);
+  if (productBrand && importedTitleBrand && importedTitleBrand === productBrand) return 0.24;
+  if (importedTitleBrand && productTitleBrand && importedTitleBrand === productTitleBrand) return 0.2;
+  return 0;
+}
+
+function likelyTitleBrand(title = "") {
+  const firstToken = normalizeText(title).split(" ").find(Boolean) || "";
+  const generic = new Set(["the", "new", "small", "large", "mini", "digital", "wireless", "portable", "handheld", "smart"]);
+  return firstToken && !generic.has(firstToken) ? firstToken : "";
+}
+
 function renderMatchQueue() {
-  const suggested = state.revenueEntries
-    .filter((entry) => entry.matchStatus === "suggested")
-    .sort((a, b) => b.matchScore - a.matchScore);
-  $("#matchQueue").innerHTML = suggested.length
-    ? suggested.map(matchCard).join("")
-    : emptyState("No suggested matches are waiting for review.", "Imported rows with uncertain matches will wait here.");
+  const query = normalizeText(state.matchSearch);
+  const waiting = state.revenueEntries
+    .filter((entry) => ["suggested", "unmatched"].includes(entry.matchStatus))
+    .filter((entry) => matchReviewText(entry).includes(query))
+    .sort((a, b) => {
+      const scoreSort = reviewMatchScore(b) - reviewMatchScore(a);
+      if (scoreSort) return scoreSort;
+      return numberValue(b.amount) - numberValue(a.amount);
+    });
+  $("#matchQueue").innerHTML = waiting.length
+    ? waiting.map(matchCard).join("")
+    : emptyState(
+        state.matchSearch ? "No imported rows match that search." : "No imported revenue rows are waiting for review.",
+        "Suggested and unmatched rows will appear here before they affect ROI."
+      );
   $$("#matchQueue [data-approve]").forEach((button) => {
     button.addEventListener("click", () => approveMatch(button.dataset.approve));
+  });
+  $$("#matchQueue [data-assign]").forEach((button) => {
+    button.addEventListener("click", () => assignMatch(button.dataset.assign));
   });
   $$("#matchQueue [data-reject]").forEach((button) => {
     button.addEventListener("click", () => rejectMatch(button.dataset.reject));
@@ -879,18 +1003,138 @@ function renderMatchQueue() {
 }
 
 function matchCard(entry) {
-  const product = state.products.find((item) => item.id === entry.suggestedProductId);
+  const candidate = reviewMatchCandidate(entry);
+  const product = candidate?.product || null;
+  const selectedProductId = product?.id || "";
+  const candidateScore = candidate?.score || 0;
+  const isSuggested = entry.matchStatus === "suggested";
+  const hasPossibleMatch = product && candidateScore > 0;
   return `<article class="match-card">
-    <div><span class="match-pill">${Math.round((entry.matchScore || 0) * 100)}% suggested</span></div>
+    <div><span class="match-pill">${
+      isSuggested
+        ? `${Math.round(candidateScore * 100)}% suggested`
+        : hasPossibleMatch
+          ? `${Math.round(candidateScore * 100)}% possible`
+          : "Unmatched"
+    }</span></div>
     <strong>${escapeHtml(entry.title || entry.asin || "Imported revenue row")}</strong>
     <span class="muted">Imported: ${escapeHtml(entry.brand || "No brand")} · ${escapeHtml(entry.asin || "No ASIN")} · ${money(entry.amount)} · ${entry.date || ""}</span>
-    <span>Suggested product: <strong>${escapeHtml(product?.title || "Missing product")}</strong></span>
-    <span class="muted">${escapeHtml(product?.brand || "No brand")} · ${escapeHtml(product?.asin || "No ASIN")}</span>
+    ${
+      hasPossibleMatch
+        ? `<span>Likeliest product: <strong>${escapeHtml(product?.title || "Missing product")}</strong></span>
+           <span class="muted">${escapeHtml(product?.brand || "No brand")} · ${escapeHtml(product?.asin || "No ASIN")}</span>`
+        : `<span class="muted">No confident product match was found. Pick the correct product below if this row belongs to one.</span>`
+    }
+    <label class="match-assign-label">Assign to product
+      <select data-match-product="${entry.id}">${productSelectOptions(selectedProductId)}</select>
+    </label>
     <div class="row-actions">
-      <button class="primary-btn" data-approve="${entry.id}" type="button">Approve match</button>
+      ${isSuggested ? `<button class="primary-btn" data-approve="${entry.id}" type="button">Approve suggestion</button>` : ""}
+      <button class="secondary-btn" data-assign="${entry.id}" type="button">Assign selected product</button>
       <button class="secondary-btn" data-reject="${entry.id}" type="button">Reject</button>
     </div>
   </article>`;
+}
+
+function matchReviewText(entry) {
+  const suggestedProduct = reviewMatchCandidate(entry)?.product;
+  return normalizeText(
+    [
+      entry.title,
+      entry.asin,
+      entry.brand,
+      entry.date,
+      entry.amount,
+      suggestedProduct?.title,
+      suggestedProduct?.asin,
+      suggestedProduct?.brand,
+    ].join(" ")
+  );
+}
+
+function reviewMatchCandidate(entry) {
+  const storedProduct = state.products.find((product) => product.id === entry.suggestedProductId);
+  if (storedProduct) return { product: storedProduct, score: numberValue(entry.matchScore) };
+  return bestProductMatch(entry);
+}
+
+function reviewMatchScore(entry) {
+  return reviewMatchCandidate(entry)?.score || 0;
+}
+
+function renderRevenueAudit() {
+  const target = $("#revenueAudit");
+  if (!target) return;
+  const query = normalizeText(state.revenueAuditSearch);
+  const imported = state.revenueEntries
+    .filter((entry) => entry.source === "csv")
+    .filter((entry) => revenueAuditText(entry).includes(query))
+    .sort((a, b) => {
+      const dateSort = String(b.date || "").localeCompare(String(a.date || ""));
+      if (dateSort) return dateSort;
+      return numberValue(b.amount) - numberValue(a.amount);
+    });
+  if (!imported.length) {
+    target.innerHTML = emptyState(
+      state.revenueAuditSearch ? "No imported revenue rows match that search." : "No imported revenue rows yet.",
+      "Upload CSV earnings files to populate this audit list."
+    );
+    return;
+  }
+  target.innerHTML = imported.map(revenueAuditCard).join("");
+  $$("#revenueAudit [data-audit-assign]").forEach((button) => {
+    button.addEventListener("click", () => reassignRevenueEntry(button.dataset.auditAssign));
+  });
+  $$("#revenueAudit [data-audit-unmatch]").forEach((button) => {
+    button.addEventListener("click", () => unmatchRevenueEntry(button.dataset.auditUnmatch));
+  });
+}
+
+function revenueAuditCard(entry) {
+  const matchedProduct = state.products.find((product) => product.id === entry.productId);
+  const suggestedProduct = state.products.find((product) => product.id === entry.suggestedProductId);
+  const batch = state.importBatches.find((item) => item.id === entry.importBatchId);
+  const productForSelect = entry.productId || entry.suggestedProductId || "";
+  return `<article class="match-card revenue-audit-card">
+    <div class="audit-card-topline">
+      <span class="match-pill">${escapeHtml(titleCase(entry.matchStatus || "unmatched"))}</span>
+      <strong>${money(entry.amount)}</strong>
+    </div>
+    <strong>${escapeHtml(entry.title || entry.asin || "Imported revenue row")}</strong>
+    <span class="muted">Imported: ${escapeHtml(entry.asin || "No ASIN")} · ${entry.date || "No date"} · ${escapeHtml(batch?.fileName || "Unknown CSV")}</span>
+    <span>Current product: <strong>${escapeHtml(matchedProduct?.title || "Not counted toward a product")}</strong></span>
+    ${suggestedProduct ? `<span class="muted">Suggested product: ${escapeHtml(suggestedProduct.title || suggestedProduct.asin || "Untitled product")}</span>` : ""}
+    <label class="match-assign-label">Move/count this row under product
+      <select data-audit-product="${entry.id}">${productSelectOptions(productForSelect)}</select>
+    </label>
+    <div class="row-actions">
+      <button class="secondary-btn" data-audit-assign="${entry.id}" type="button">Assign selected product</button>
+      <button class="ghost-btn" data-audit-unmatch="${entry.id}" type="button">Leave unmatched</button>
+    </div>
+  </article>`;
+}
+
+function revenueAuditText(entry) {
+  const matchedProduct = state.products.find((product) => product.id === entry.productId);
+  const suggestedProduct = state.products.find((product) => product.id === entry.suggestedProductId);
+  const batch = state.importBatches.find((item) => item.id === entry.importBatchId);
+  return normalizeText(
+    [
+      entry.title,
+      entry.asin,
+      entry.brand,
+      entry.date,
+      entry.amount,
+      entry.matchStatus,
+      matchedProduct?.title,
+      matchedProduct?.asin,
+      matchedProduct?.brand,
+      suggestedProduct?.title,
+      suggestedProduct?.asin,
+      suggestedProduct?.brand,
+      batch?.fileName,
+    ].join(" ")
+  );
 }
 
 async function approveMatch(entryId) {
@@ -908,6 +1152,57 @@ async function approveMatch(entryId) {
   await refreshState();
   render();
   toast("Match approved and ROI updated.");
+}
+
+async function assignMatch(entryId) {
+  const entry = state.revenueEntries.find((item) => item.id === entryId);
+  const productId = $(`[data-match-product="${entryId}"]`)?.value || "";
+  if (!entry || !productId) {
+    toast("Choose a product first.");
+    return;
+  }
+  await put("revenueEntries", { ...entry, productId, suggestedProductId: "", matchStatus: "approved", matchScore: 1 });
+  await put("approvedMatches", {
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    productId,
+    asin: entry.asin,
+    title: entry.title,
+    brand: entry.brand,
+  });
+  await refreshState();
+  render();
+  toast("Revenue row assigned and ROI updated.");
+}
+
+async function reassignRevenueEntry(entryId) {
+  const entry = state.revenueEntries.find((item) => item.id === entryId);
+  const productId = $(`[data-audit-product="${entryId}"]`)?.value || "";
+  if (!entry || !productId) {
+    toast("Choose a product first.");
+    return;
+  }
+  await put("revenueEntries", { ...entry, productId, suggestedProductId: "", matchStatus: "approved", matchScore: 1 });
+  await put("approvedMatches", {
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    productId,
+    asin: entry.asin,
+    title: entry.title,
+    brand: entry.brand,
+  });
+  await refreshState();
+  render();
+  toast("Revenue row assigned and ROI updated.");
+}
+
+async function unmatchRevenueEntry(entryId) {
+  const entry = state.revenueEntries.find((item) => item.id === entryId);
+  if (!entry) return;
+  await put("revenueEntries", { ...entry, productId: "", suggestedProductId: "", matchStatus: "unmatched", matchScore: 0 });
+  await refreshState();
+  render();
+  toast("Revenue row left unmatched.");
 }
 
 async function rejectMatch(entryId) {
@@ -1036,6 +1331,24 @@ async function clearAllData() {
   toast("All local data cleared.");
 }
 
+async function clearImportedRevenue() {
+  const csvRevenue = state.revenueEntries.filter((entry) => entry.source === "csv");
+  if (!csvRevenue.length && !state.importBatches.length) {
+    toast("No CSV imports to clear.");
+    return;
+  }
+  if (!confirm("Clear imported CSV revenue rows and CSV import history? Products, videos, costs, manual revenue, and approved matches will stay.")) return;
+  for (const entry of csvRevenue) {
+    await remove("revenueEntries", entry.id);
+  }
+  for (const batch of state.importBatches) {
+    await remove("importBatches", batch.id);
+  }
+  await refreshState();
+  render();
+  toast("CSV imports cleared. Products and manual entries were kept.");
+}
+
 async function seedDemoData() {
   if (state.products.length && !confirm("Add sample data to your current dashboard?")) return;
   const productA = {
@@ -1142,6 +1455,7 @@ async function seedDemoData() {
 }
 
 function parseCsv(text) {
+  const delimiter = detectDelimiter(text);
   const rows = [];
   let row = [];
   let value = "";
@@ -1154,7 +1468,7 @@ function parseCsv(text) {
       index += 1;
     } else if (char === '"') {
       quoted = !quoted;
-    } else if (char === "," && !quoted) {
+    } else if (char === delimiter && !quoted) {
       row.push(value);
       value = "";
     } else if ((char === "\n" || char === "\r") && !quoted) {
@@ -1173,6 +1487,25 @@ function parseCsv(text) {
   return rows.map((cells) =>
     Object.fromEntries(headers.map((header, index) => [header, cells[index]?.trim() || ""]))
   );
+}
+
+function detectDelimiter(text = "") {
+  const sample = String(text).split(/\r?\n/).find((line) => line.trim()) || "";
+  const candidates = [",", "\t", ";"];
+  const counts = Object.fromEntries(candidates.map((candidate) => [candidate, 0]));
+  let quoted = false;
+  for (let index = 0; index < sample.length; index += 1) {
+    const char = sample[index];
+    const next = sample[index + 1];
+    if (char === '"' && quoted && next === '"') {
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (!quoted && candidates.includes(char)) {
+      counts[char] += 1;
+    }
+  }
+  return candidates.sort((a, b) => counts[b] - counts[a])[0] || ",";
 }
 
 function extractAsinFromInput(value = "") {
@@ -1404,11 +1737,37 @@ function guessMappings(headers) {
     category: find("category", "node", "department"),
     price: find("price", "new: 90 days avg.", "amazon: 90 days avg.", "buy box"),
     date: find("date", "month", "period"),
-    amount: find("commission", "earnings", "revenue", "fees", "income"),
+    amount: findAmountHeader(headers),
     clicks: find("clicks"),
     orders: find("orders", "items shipped", "shipped items"),
     sourceLink: find("amazon link", "url", "link"),
   };
+}
+
+function findAmountHeader(headers) {
+  const normalizedHeaders = headers.map((header) => ({ header, normalized: normalizeText(header) }));
+  const priority = [
+    "total earnings",
+    "commission earned",
+    "commissions earned",
+    "shipped earnings",
+    "earnings",
+    "fees",
+    "income",
+  ];
+  for (const needle of priority) {
+    const exact = normalizedHeaders.find(({ normalized }) => normalized === needle);
+    if (exact) return exact.header;
+  }
+  for (const needle of priority) {
+    const partial = normalizedHeaders.find(({ normalized }) => {
+      if (!normalized.includes(needle)) return false;
+      if (normalized.includes("rate") || normalized.includes("revenue") || normalized.includes("returned")) return false;
+      return true;
+    });
+    if (partial) return partial.header;
+  }
+  return OPTIONAL_MAPPING;
 }
 
 function toCsv(rows) {
@@ -1471,8 +1830,77 @@ function normalizeDate(value) {
   return `${fullYear}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
+function inferReportDateFromFileName(fileName = "") {
+  const text = String(fileName).replace(/[_-]+/g, " ");
+  const isoDates = String(fileName).match(/20\d{2}[-_]\d{1,2}[-_]\d{1,2}/g);
+  if (isoDates?.length) return normalizeDate(isoDates.at(-1).replaceAll("_", "-"));
+
+  const monthNames = {
+    jan: 1,
+    january: 1,
+    feb: 2,
+    february: 2,
+    mar: 3,
+    march: 3,
+    apr: 4,
+    april: 4,
+    may: 5,
+    jun: 6,
+    june: 6,
+    jul: 7,
+    july: 7,
+    aug: 8,
+    august: 8,
+    sep: 9,
+    sept: 9,
+    september: 9,
+    oct: 10,
+    october: 10,
+    nov: 11,
+    november: 11,
+    dec: 12,
+    december: 12,
+  };
+  const yearMatch = text.match(/\b(20\d{2})\b/);
+  const currentYear = new Date().getFullYear();
+  const baseYear = yearMatch ? Number(yearMatch[1]) : currentYear;
+  const monthPattern = Object.keys(monthNames).join("|");
+  const namedRange = text.match(
+    new RegExp(`\\b(${monthPattern})\\w*\\s+(\\d{1,2})\\s*(?:to|through|thru)\\s*(?:(${monthPattern})\\w*\\s+)?(\\d{1,2})\\b`, "i")
+  );
+  if (namedRange) {
+    const startMonth = monthNames[namedRange[1].toLowerCase().slice(0, 3)] || monthNames[namedRange[1].toLowerCase()];
+    const endMonth = namedRange[3]
+      ? monthNames[namedRange[3].toLowerCase().slice(0, 3)] || monthNames[namedRange[3].toLowerCase()]
+      : startMonth;
+    const year = endMonth < startMonth ? baseYear + 1 : baseYear;
+    return dateFromParts(year, endMonth, Number(namedRange[4]));
+  }
+
+  const numericRange = text.match(/\b(\d{1,2})[./](\d{1,2})\s*(?:to|through|thru)\s*(?:(\d{1,2})[./])?(\d{1,2})\b/i);
+  if (numericRange) {
+    const startMonth = Number(numericRange[1]);
+    const endMonth = Number(numericRange[3] || numericRange[1]);
+    const year = endMonth < startMonth ? baseYear + 1 : baseYear;
+    return dateFromParts(year, endMonth, Number(numericRange[4]));
+  }
+
+  return "";
+}
+
+function dateFromParts(year, month, day) {
+  if (!year || !month || !day) return "";
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 function toMonth(date) {
   return date ? String(date).slice(0, 7) : "";
+}
+
+function formatDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value || "";
+  return date.toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 function formatMonth(month) {

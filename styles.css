@@ -397,9 +397,18 @@ h3 {
 
 .ranking-list,
 .match-list,
-.import-summary {
+.import-summary,
+.import-history-list {
   display: grid;
   gap: 10px;
+}
+
+.match-toolbar {
+  margin-bottom: 14px;
+}
+
+.revenue-audit-panel {
+  margin-top: 16px;
 }
 
 .rank-card,
@@ -427,6 +436,84 @@ h3 {
 .rank-card strong,
 .match-card strong {
   line-height: 1.25;
+}
+
+.match-assign-label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.audit-card-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.audit-card-topline strong {
+  color: var(--accent-strong);
+  font-size: 1.05rem;
+}
+
+.import-history-panel,
+.import-maintenance {
+  margin-top: 18px;
+}
+
+.import-history-card,
+.import-maintenance {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.import-history-card {
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  align-items: start;
+}
+
+.import-history-card > div,
+.import-maintenance > div {
+  display: grid;
+  gap: 5px;
+}
+
+.import-history-card span,
+.import-maintenance span {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.import-history-card dl {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.import-history-card dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.import-history-card dd {
+  margin: 3px 0 0;
+  color: var(--ink);
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.import-maintenance {
+  grid-template-columns: 1fr auto;
+  align-items: center;
 }
 
 .rank-stat,
@@ -1150,9 +1237,15 @@ dialog::backdrop {
   .mapping-grid,
   .form-grid,
   .export-grid,
+  .import-history-card,
+  .import-maintenance,
   .video-row,
   .suggestion-grid {
     grid-template-columns: 1fr;
+  }
+
+  .import-history-card dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .panel,
@@ -1189,6 +1282,10 @@ dialog::backdrop {
 
   .metric {
     min-height: 108px;
+  }
+
+  .import-history-card dl {
+    grid-template-columns: 1fr;
   }
 
   th,
