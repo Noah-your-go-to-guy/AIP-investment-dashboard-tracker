@@ -9,7 +9,7 @@ The dashboard is local-first. Your product costs, CSV income, matches, and notes
 Use this order:
 
 1. Download the dashboard from GitHub.
-2. Start it with `start-dashboard.cmd`.
+2. Start it with the launcher for your computer.
 3. Open `http://127.0.0.1:4173/`.
 4. Set up the Amazon bookmarklet one time.
 5. Add products before uploading earnings CSVs.
@@ -56,6 +56,10 @@ There is no dependency install step. You do not need to run `npm install`.
 
 ## 3. Start the Dashboard
 
+You need Node.js installed first. You do not need to install any dashboard dependencies.
+
+### Windows
+
 The easiest way on Windows is to double-click:
 
 ```text
@@ -65,6 +69,33 @@ start-dashboard.cmd
 Or run this in PowerShell:
 
 ```powershell
+node server.js
+```
+
+### Mac
+
+The easiest way on Mac is to double-click:
+
+```text
+start-dashboard.command
+```
+
+The first time you use it, your Mac may block it because it was downloaded from the internet. If that happens:
+
+1. Right-click `start-dashboard.command`.
+2. Click `Open`.
+3. Click `Open` again if your Mac asks for confirmation.
+
+If double-clicking still does not work, open Terminal in the dashboard folder and run:
+
+```bash
+chmod +x start-dashboard.command
+./start-dashboard.command
+```
+
+You can also run the dashboard manually from Terminal:
+
+```bash
 node server.js
 ```
 

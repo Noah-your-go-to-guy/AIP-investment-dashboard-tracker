@@ -25,7 +25,9 @@ Replace `YOUR_REPOSITORY_URL` with the GitHub link for this project.
 
 ## Start the Dashboard
 
-No dependency install is needed.
+Install Node.js first if your computer does not already have it.
+
+No dashboard dependency install is needed.
 
 On Windows, double-click:
 
@@ -33,7 +35,19 @@ On Windows, double-click:
 start-dashboard.cmd
 ```
 
-Or run:
+On Mac, double-click:
+
+```text
+start-dashboard.command
+```
+
+If Mac blocks the file the first time, right-click it, choose `Open`, then confirm. If needed, run this once in Terminal from the dashboard folder:
+
+```bash
+chmod +x start-dashboard.command
+```
+
+Or start it manually:
 
 ```powershell
 node server.js
