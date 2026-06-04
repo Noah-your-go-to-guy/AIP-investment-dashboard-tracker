@@ -45,6 +45,7 @@
 - Weekly CSV imports should stack into lifetime product earnings, while duplicate rows are skipped using `report date + ASIN + title + commission amount`.
 - Exact duplicate CSV files are blocked using a SHA-256 hash of the file text saved on the import batch.
 - `Remove duplicate CSV rows` removes duplicate imported CSV revenue rows with the same revenue fingerprint while keeping products and the first copy of each row.
+- CSV data clearing and duplicate cleanup use bulk deletion in cloud mode and show progress/status in the CSV import summary, instead of appearing stuck while Supabase deletes rows.
 - CSV import disables the import button and shows status while saving. In cloud mode, imported revenue rows are batch-upserted to Supabase instead of saved one row per network request.
 - CSV import now shows import history with file name, imported time, detected report date, mapped money column, rows found, rows imported, and duplicates skipped.
 - CSV import supports comma-separated and tab-separated files, and the mapping preview explicitly shows only the first five rows even though all rows import.

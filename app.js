@@ -202,6 +202,25 @@ async function remove(storeName, id) {
   if (error) throw error;
 }
 
+async function removeMany(storeName, ids = []) {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  if (!uniqueIds.length) return;
+  if (!cloudStorageActive()) {
+    await Promise.all(uniqueIds.map((id) => localRemove(storeName, id)));
+    return;
+  }
+  const chunkSize = 500;
+  for (let index = 0; index < uniqueIds.length; index += chunkSize) {
+    const { error } = await supabaseClient
+      .from("dashboard_records")
+      .delete()
+      .eq("user_id", state.cloudUser.id)
+      .eq("store", storeName)
+      .in("id", uniqueIds.slice(index, index + chunkSize));
+    if (error) throw error;
+  }
+}
+
 async function clearStore(storeName) {
   if (!cloudStorageActive()) return localClearStore(storeName);
   const { error } = await supabaseClient.from("dashboard_records").delete().eq("store", storeName);
@@ -1866,20 +1885,42 @@ async function clearImportedRevenue() {
     return;
   }
   if (!confirm("Clear imported CSV revenue rows and CSV import history? Products, videos, costs, manual revenue, and approved matches will stay.")) return;
-  for (const entry of csvRevenue) {
-    await remove("revenueEntries", entry.id);
+  const clearButton = $("#clearImportedRevenueBtn");
+  const dedupeButton = $("#dedupeCsvRevenueBtn");
+  clearButton.disabled = true;
+  dedupeButton.disabled = true;
+  clearButton.textContent = "Clearing...";
+  $("#importSummary").innerHTML = `<article class="rank-card">
+    <strong>Clearing CSV data...</strong>
+    <span>Removing ${csvRevenue.length} imported revenue row${csvRevenue.length === 1 ? "" : "s"} and ${state.importBatches.length} import histor${state.importBatches.length === 1 ? "y" : "ies"}. Products will stay.</span>
+  </article>`;
+  try {
+    await removeMany("revenueEntries", csvRevenue.map((entry) => entry.id));
+    await removeMany("importBatches", state.importBatches.map((batch) => batch.id));
+    state.pendingCsv = null;
+    $("#csvInput").value = "";
+    $("#mappingWizard").classList.add("hidden");
+    $("#mappingWizard").innerHTML = "";
+    await refreshState();
+    render();
+    $("#importSummary").innerHTML = `<article class="rank-card">
+      <strong>CSV data cleared</strong>
+      <span>Removed ${csvRevenue.length} imported revenue row${csvRevenue.length === 1 ? "" : "s"} and ${state.importBatches.length} import histor${state.importBatches.length === 1 ? "y" : "ies"}.</span>
+      <span>Products, videos, costs, manual revenue, and approved matches were kept.</span>
+    </article>`;
+    toast("CSV data cleared. Products and manual entries were kept.");
+  } catch (error) {
+    console.error("CSV clear failed", error);
+    $("#importSummary").innerHTML = `<article class="rank-card rank-negative">
+      <strong>Clear CSV data failed</strong>
+      <span>${escapeHtml(error?.message || "Something went wrong while clearing CSV data.")}</span>
+    </article>`;
+    toast("Clear CSV data failed. See the import summary.");
+  } finally {
+    clearButton.disabled = false;
+    dedupeButton.disabled = false;
+    clearButton.textContent = "Clear CSV data (keep products)";
   }
-  for (const batch of state.importBatches) {
-    await remove("importBatches", batch.id);
-  }
-  state.pendingCsv = null;
-  $("#csvInput").value = "";
-  $("#mappingWizard").classList.add("hidden");
-  $("#mappingWizard").innerHTML = "";
-  $("#importSummary").innerHTML = "";
-  await refreshState();
-  render();
-  toast("CSV data cleared. Products and manual entries were kept.");
 }
 
 async function removeDuplicateCsvRevenueRows() {
@@ -1902,12 +1943,36 @@ async function removeDuplicateCsvRevenueRows() {
     return;
   }
   if (!confirm(`Remove ${duplicates.length} duplicate CSV revenue row${duplicates.length === 1 ? "" : "s"}? Products and the first copy of each row will be kept.`)) return;
-  for (const entry of duplicates) {
-    await remove("revenueEntries", entry.id);
+  const dedupeButton = $("#dedupeCsvRevenueBtn");
+  const clearButton = $("#clearImportedRevenueBtn");
+  dedupeButton.disabled = true;
+  clearButton.disabled = true;
+  dedupeButton.textContent = "Removing...";
+  $("#importSummary").innerHTML = `<article class="rank-card">
+    <strong>Removing duplicate CSV rows...</strong>
+    <span>Removing ${duplicates.length} duplicate row${duplicates.length === 1 ? "" : "s"} while keeping the first copy.</span>
+  </article>`;
+  try {
+    await removeMany("revenueEntries", duplicates.map((entry) => entry.id));
+    await refreshState();
+    render();
+    $("#importSummary").innerHTML = `<article class="rank-card">
+      <strong>Duplicate CSV rows removed</strong>
+      <span>Removed ${duplicates.length} duplicate row${duplicates.length === 1 ? "" : "s"} and kept the first copy of each imported earning row.</span>
+    </article>`;
+    toast(`Removed ${duplicates.length} duplicate CSV row${duplicates.length === 1 ? "" : "s"}.`);
+  } catch (error) {
+    console.error("Duplicate CSV cleanup failed", error);
+    $("#importSummary").innerHTML = `<article class="rank-card rank-negative">
+      <strong>Duplicate cleanup failed</strong>
+      <span>${escapeHtml(error?.message || "Something went wrong while removing duplicate CSV rows.")}</span>
+    </article>`;
+    toast("Duplicate cleanup failed. See the import summary.");
+  } finally {
+    dedupeButton.disabled = false;
+    clearButton.disabled = false;
+    dedupeButton.textContent = "Remove duplicate CSV rows";
   }
-  await refreshState();
-  render();
-  toast(`Removed ${duplicates.length} duplicate CSV row${duplicates.length === 1 ? "" : "s"}.`);
 }
 
 async function seedDemoData() {
