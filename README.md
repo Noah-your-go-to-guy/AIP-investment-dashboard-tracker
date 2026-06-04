@@ -109,6 +109,8 @@ Signed-in users store dashboard records in Supabase. Each user's records are pro
 
 If you already have local browser data, sign in and click `Copy local data to cloud` to move those records into your Supabase account.
 
+Supabase Auth must be configured to redirect back to the hosted dashboard. In Supabase, go to `Authentication` > `URL Configuration`, set the Site URL to the live Vercel URL, and add the hosted Vercel URL to Additional Redirect URLs.
+
 Use `Export backup` before clearing browser data, moving computers, or making major changes.
 
 Backups and exported CSVs are ignored by Git by default so private data is not accidentally uploaded.

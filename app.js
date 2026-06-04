@@ -83,7 +83,13 @@ async function initSupabase() {
     return;
   }
   state.cloudAvailable = true;
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      persistSession: true,
+    },
+  });
   const { data, error } = await supabaseClient.auth.getSession();
   if (error) {
     console.warn("Supabase session check failed", error);
@@ -335,6 +341,10 @@ function getAuthCredentials() {
   };
 }
 
+function getAuthRedirectUrl() {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
 async function signInToCloud() {
   if (!supabaseClient) {
     toast("Cloud login is not available yet.");
@@ -368,7 +378,13 @@ async function signUpForCloud() {
     toast("Use a password with at least 6 characters.");
     return;
   }
-  const { data, error } = await supabaseClient.auth.signUp({ email, password });
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: getAuthRedirectUrl(),
+    },
+  });
   if (error) {
     toast(error.message);
     return;
