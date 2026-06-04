@@ -191,7 +191,32 @@ h3 {
 }
 
 .cloud-copy strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 0.9rem;
+}
+
+.cloud-status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.cloud-status-pill.local {
+  color: var(--muted);
+  background: var(--faint);
+}
+
+.cloud-status-pill.signed-in {
+  color: #ffffff;
+  background: var(--accent);
 }
 
 .cloud-copy span {

@@ -284,6 +284,7 @@ function bindEvents() {
   $("#seedDemoBtn").addEventListener("click", seedDemoData);
   $("#signInBtn").addEventListener("click", signInToCloud);
   $("#signUpBtn").addEventListener("click", signUpForCloud);
+  $("#resendConfirmationBtn").addEventListener("click", resendCloudConfirmation);
   $("#signOutBtn").addEventListener("click", signOutOfCloud);
   $("#copyLocalToCloudBtn").addEventListener("click", copyLocalDataToCloud);
   $("#extractAsinBtn").addEventListener("click", handleExtractAsin);
@@ -325,6 +326,9 @@ function render() {
 function renderCloudAccount() {
   const signedIn = cloudStorageActive();
   $("#cloudStatusTitle").textContent = signedIn ? "Cloud account" : "Local browser";
+  $("#cloudStatusPill").textContent = signedIn ? "Signed in" : "Local";
+  $("#cloudStatusPill").classList.toggle("signed-in", signedIn);
+  $("#cloudStatusPill").classList.toggle("local", !signedIn);
   $("#cloudStatusNote").textContent = signedIn
     ? `Signed in as ${state.cloudUser.email || "Supabase user"}`
     : state.cloudAvailable
@@ -357,11 +361,13 @@ async function signInToCloud() {
   }
   const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if (error) {
-    toast(error.message);
+    toast(authErrorMessage(error));
     return;
   }
   $("#authPassword").value = "";
-  toast("Signed in. Cloud dashboard loaded.");
+  await refreshState();
+  render();
+  toast("Signed in. Your cloud dashboard is active.");
 }
 
 async function signUpForCloud() {
@@ -390,7 +396,39 @@ async function signUpForCloud() {
     return;
   }
   $("#authPassword").value = "";
-  toast(data.session ? "Account created. Cloud dashboard loaded." : "Account created. Check your email if Supabase asks you to confirm it.");
+  toast(data.session ? "Account created. Your cloud dashboard is active." : "Account created. Check your email to confirm it. If nothing arrives, use Resend confirmation.");
+}
+
+async function resendCloudConfirmation() {
+  if (!supabaseClient) {
+    toast("Cloud login is not available yet.");
+    return;
+  }
+  const email = $("#authEmail").value.trim();
+  if (!email) {
+    toast("Enter your email first.");
+    return;
+  }
+  const { error } = await supabaseClient.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: getAuthRedirectUrl(),
+    },
+  });
+  if (error) {
+    toast(authErrorMessage(error));
+    return;
+  }
+  toast("Confirmation email resent. Check your inbox and spam folder.");
+}
+
+function authErrorMessage(error) {
+  const message = error?.message || "Cloud login failed.";
+  if (/confirm|confirmed|verification/i.test(message)) {
+    return "That email is not confirmed yet. Click Resend confirmation, then check your inbox and spam folder.";
+  }
+  return message;
 }
 
 async function signOutOfCloud() {

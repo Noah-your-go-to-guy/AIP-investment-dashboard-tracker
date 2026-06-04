@@ -15,6 +15,7 @@
 - The app uses the Supabase publishable key in `app.js`, which is acceptable client-side because RLS enforces user data isolation.
 - Users can sign in/create an account from the dashboard header. When signed in, all existing app storage helpers read/write Supabase instead of IndexedDB.
 - Sign-up passes `emailRedirectTo` based on the current site origin/path so confirmation emails return to the active dashboard URL. Supabase Auth URL Configuration still needs Site URL/Additional Redirect URLs set to the hosted Vercel URL.
+- The cloud account UI includes a clear `Signed in`/`Local` pill and a `Resend confirmation` button using `supabase.auth.resend({ type: "signup" })`.
 - `Copy local data to cloud` reads local IndexedDB records and upserts them into the signed-in Supabase account.
 - Run from this folder with `node server.js`, then open `http://127.0.0.1:4173/`.
 - On Windows, most users should start it by double-clicking `start-dashboard.cmd`, then opening `http://127.0.0.1:4173/`.

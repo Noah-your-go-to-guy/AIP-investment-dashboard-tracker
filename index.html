@@ -25,7 +25,7 @@
         <span class="action-label">Workspace</span>
         <div id="cloudAccount" class="cloud-account">
           <div class="cloud-copy">
-            <strong id="cloudStatusTitle">Local browser</strong>
+            <strong><span id="cloudStatusPill" class="cloud-status-pill local">Local</span><span id="cloudStatusTitle">Local browser</span></strong>
             <span id="cloudStatusNote">Sign in to save dashboard data in Supabase.</span>
           </div>
           <div id="cloudAuthFields" class="cloud-auth-fields">
@@ -33,6 +33,7 @@
             <input id="authPassword" type="password" autocomplete="current-password" placeholder="Password" />
             <button id="signInBtn" class="secondary-btn" type="button">Sign in</button>
             <button id="signUpBtn" class="ghost-btn" type="button">Create account</button>
+            <button id="resendConfirmationBtn" class="ghost-btn" type="button">Resend confirmation</button>
           </div>
           <div id="cloudSignedInActions" class="cloud-signed-in-actions hidden">
             <button id="copyLocalToCloudBtn" class="secondary-btn" type="button">Copy local data to cloud</button>
