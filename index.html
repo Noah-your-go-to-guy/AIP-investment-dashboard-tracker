@@ -457,6 +457,24 @@
       </form>
     </dialog>
 
+    <dialog id="productCsvDialog">
+      <form method="dialog" class="dialog-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">CSV attribution</p>
+            <h2 id="productCsvDialogTitle">CSV row audit</h2>
+          </div>
+          <button class="icon-btn" value="cancel" type="submit" aria-label="Close">x</button>
+        </div>
+        <section id="productCsvAuditSummary" class="product-csv-summary"></section>
+        <section id="productCsvAuditRows" class="match-list product-csv-list"></section>
+        <div class="dialog-actions">
+          <span></span>
+          <button class="secondary-btn" value="cancel" type="submit">Close</button>
+        </div>
+      </form>
+    </dialog>
+
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./app.js"></script>

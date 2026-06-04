@@ -7,7 +7,7 @@ const STATUSES = ["researched", "bought", "received", "filmed", "posted", "earni
 const PURCHASED_STATUSES = ["bought", "received", "filmed", "posted", "earning", "paid off"];
 const VIDEO_STATUSES = ["not filmed", "filmed", "posted", "needs check"];
 const OPTIONAL_MAPPING = "Do not import";
-const MATCH_REVIEW_MIN_SCORE = 0.05;
+const MATCH_REVIEW_MIN_SCORE = 0.02;
 const MATCH_SUGGESTION_MIN_SCORE = 0.48;
 const GENERIC_IMPORT_LABELS = new Set([
   "other",
@@ -309,6 +309,7 @@ async function restoreActionableIgnoredRevenueRows() {
     if (entry.productId || entry.matchStatus !== "ignored") continue;
     if (!hasActionableImportIdentity(entry)) continue;
     const candidate = bestProductMatch(entry);
+    if (!candidate?.score || candidate.score <= MATCH_REVIEW_MIN_SCORE) continue;
     await put("revenueEntries", {
       ...entry,
       suggestedProductId: candidate?.product?.id || "",
@@ -325,8 +326,7 @@ async function excludeWeakRevenueMatches() {
   for (const entry of state.revenueEntries) {
     if (entry.productId || entry.matchStatus !== "unmatched") continue;
     const score = reviewMatchScore(entry);
-    if (score >= MATCH_REVIEW_MIN_SCORE) continue;
-    if (hasActionableImportIdentity(entry)) continue;
+    if (score > MATCH_REVIEW_MIN_SCORE) continue;
     await put("revenueEntries", {
       ...entry,
       suggestedProductId: "",
@@ -885,6 +885,9 @@ function renderProducts() {
   $$("#productsTable [data-add-revenue]").forEach((button) => {
     button.addEventListener("click", () => openRevenueDialog(button.dataset.addRevenue));
   });
+  $$("#productsTable [data-product-csv]").forEach((button) => {
+    button.addEventListener("click", () => openProductCsvAudit(button.dataset.productCsv));
+  });
 }
 
 function sortProductRows(a, b) {
@@ -912,11 +915,15 @@ function productRow({ product, stats }) {
   const videos = normalizeProductVideos(product);
   const videoCount = videos.length || numberValue(product.videoCount);
   const latestVideoLink = [...videos].reverse().find((video) => video.link)?.link || "";
+  const csvRowCount = productCsvRows(product.id).length;
   return `<tr>
     <td>
       <div class="product-title">${escapeHtml(product.title || "Untitled product")}</div>
       <div class="product-sub">${escapeHtml(product.brand || "No brand")} · ${escapeHtml(product.asin || "No ASIN")} · ${escapeHtml(product.category || "Uncategorized")}</div>
-      ${amazonLink ? `<div class="product-sub"><a href="${escapeHtml(amazonLink)}" target="_blank" rel="noreferrer">Open Amazon</a></div>` : ""}
+      <div class="product-links">
+        ${amazonLink ? `<a href="${escapeHtml(amazonLink)}" target="_blank" rel="noreferrer">Open Amazon</a>` : ""}
+        <button class="text-link" data-product-csv="${product.id}" type="button">CSV rows (${csvRowCount})</button>
+      </div>
     </td>
     <td><span class="status-pill">${titleCase(product.status || "researched")}</span></td>
     <td class="numeric">${money(stats.cost)}</td>
@@ -947,6 +954,95 @@ function productRow({ product, stats }) {
       </div>
     </td>
   </tr>`;
+}
+
+function productCsvRows(productId) {
+  return state.revenueEntries
+    .filter((entry) => entry.source === "csv" && entry.productId === productId)
+    .sort((a, b) => {
+      const dateSort = String(b.date || "").localeCompare(String(a.date || ""));
+      if (dateSort) return dateSort;
+      return numberValue(b.amount) - numberValue(a.amount);
+    });
+}
+
+function openProductCsvAudit(productId) {
+  const product = state.products.find((item) => item.id === productId);
+  if (!product) return;
+  renderProductCsvAuditContents(productId);
+  const dialog = $("#productCsvDialog");
+  if (!dialog.open) dialog.showModal();
+}
+
+function renderProductCsvAuditContents(productId) {
+  const product = state.products.find((item) => item.id === productId);
+  if (!product) return;
+  const rows = productCsvRows(productId);
+  const total = rows.reduce((sum, entry) => sum + numberValue(entry.amount), 0);
+  const uniqueAsins = new Set(rows.map((entry) => entry.asin).filter(Boolean));
+  const uniqueFiles = new Set(rows.map((entry) => state.importBatches.find((batch) => batch.id === entry.importBatchId)?.fileName).filter(Boolean));
+  $("#productCsvDialogTitle").textContent = product.title || "CSV row audit";
+  $("#productCsvAuditSummary").innerHTML = `
+    <article class="audit-summary-card">
+      <div><span>Total counted</span><strong>${money(total)}</strong></div>
+      <div><span>CSV rows</span><strong>${rows.length}</strong></div>
+      <div><span>Imported ASINs</span><strong>${uniqueAsins.size}</strong></div>
+      <div><span>CSV files</span><strong>${uniqueFiles.size}</strong></div>
+    </article>
+    <p class="muted">These are imported CSV revenue rows currently counted toward this investment product.</p>`;
+  $("#productCsvAuditRows").innerHTML = rows.length
+    ? rows.map((entry) => productCsvAuditCard(entry, product)).join("")
+    : emptyState("No CSV rows are counted toward this product yet.", "Upload earnings CSVs or assign rows from Match Review to populate this list.");
+  $$("#productCsvAuditRows [data-remove-product-csv]").forEach((button) => {
+    button.addEventListener("click", () => removeProductCsvAttribution(button.dataset.removeProductCsv, productId));
+  });
+}
+
+function productCsvAuditCard(entry, product) {
+  const batch = state.importBatches.find((item) => item.id === entry.importBatchId);
+  const warnings = productCsvWarnings(entry, product);
+  return `<article class="match-card product-csv-card">
+    <div class="audit-card-topline">
+      <span class="match-pill">${escapeHtml(productCsvMatchLabel(entry, product))}</span>
+      <strong>${money(entry.amount)}</strong>
+    </div>
+    <strong>${escapeHtml(entry.title || entry.asin || "Imported revenue row")}</strong>
+    <span class="muted">Imported: ${escapeHtml(entry.asin || "No ASIN")} · ${entry.date || "No date"} · ${escapeHtml(batch?.fileName || "Unknown CSV")}</span>
+    ${entry.brand ? `<span class="muted">Brand/source: ${escapeHtml(entry.brand)}</span>` : ""}
+    ${
+      warnings.length
+        ? `<div class="csv-warning-row">${warnings.map((warning) => `<span>${escapeHtml(warning)}</span>`).join("")}</div>`
+        : ""
+    }
+    <div class="row-actions">
+      <button class="secondary-btn" data-remove-product-csv="${entry.id}" type="button">Remove attribution</button>
+    </div>
+  </article>`;
+}
+
+function productCsvMatchLabel(entry, product) {
+  if (entry.asin && product.asin && entry.asin === product.asin) return "Exact ASIN";
+  if (normalizeText(entry.title) && normalizeText(entry.title) === normalizeText(product.title)) return "Exact title";
+  if (entry.matchStatus === "approved") return "Approved/manual";
+  if (entry.matchStatus === "exact") return "Shared title/campaign";
+  return titleCase(entry.matchStatus || "matched");
+}
+
+function productCsvWarnings(entry, product) {
+  const warnings = [];
+  if (entry.asin && product.asin && entry.asin !== product.asin) warnings.push("Different ASIN");
+  if (entry.title && product.title && normalizeText(entry.title) !== normalizeText(product.title)) warnings.push("Different title/campaign");
+  return warnings;
+}
+
+async function removeProductCsvAttribution(entryId, productId) {
+  const entry = state.revenueEntries.find((item) => item.id === entryId);
+  if (!entry) return;
+  await put("revenueEntries", { ...entry, productId: "", suggestedProductId: "", matchStatus: "ignored", matchScore: 0 });
+  await refreshState();
+  render();
+  renderProductCsvAuditContents(productId);
+  toast("CSV row no longer counts toward this product.");
 }
 
 function deriveVideoStatus(product = {}) {
@@ -1420,7 +1516,7 @@ async function runImport() {
       <strong>Import complete</strong>
       <span>Money column: ${escapeHtml(mapping.amount || "Not mapped")} · Report date: ${escapeHtml(batch.reportDate || "mapped/default")}</span>
       <span>Rows found: ${batch.rowCount} · Rows imported: ${summary.exact + summary.approved + summary.suggested + summary.unmatched + summary.ignored} · Empty/no earnings skipped: ${summary.lookupOnly}</span>
-      <span>Exact: ${summary.exact} · Approved: ${summary.approved} · Suggested: ${summary.suggested} · Review unmatched: ${summary.unmatched} · Ignored generic/noise: ${summary.ignored} · Duplicates skipped: ${summary.duplicate}</span>
+      <span>Exact: ${summary.exact} · Approved: ${summary.approved} · Suggested: ${summary.suggested} · Review unmatched: ${summary.unmatched} · Ignored low-confidence/noise: ${summary.ignored} · Duplicates skipped: ${summary.duplicate}</span>
     </article>`;
     await refreshState();
     await repairExactTitleRevenueMatches();
@@ -1468,7 +1564,7 @@ function renderImportHistory() {
           <div><dt>Money column</dt><dd>${escapeHtml(batch.mapping?.amount || "Not mapped")}</dd></div>
           <div><dt>Rows found</dt><dd>${numberValue(batch.rowCount)}</dd></div>
           <div><dt>Rows imported</dt><dd>${importedRows}</dd></div>
-          <div><dt>Ignored generic/noise</dt><dd>${ignoredCount}</dd></div>
+          <div><dt>Ignored low-confidence/noise</dt><dd>${ignoredCount}</dd></div>
           <div><dt>Duplicates skipped</dt><dd>${duplicateCount}</dd></div>
         </dl>
       </article>`;
@@ -1526,11 +1622,8 @@ function findMatch(row) {
       matchScore: best.score,
     };
   }
-  if (!best?.score || best.score < MATCH_REVIEW_MIN_SCORE) {
-    if (!hasActionableImportIdentity(row)) {
-      return { productId: "", suggestedProductId: "", matchStatus: "ignored", matchScore: 0 };
-    }
-    return { productId: "", suggestedProductId: best?.product?.id || "", matchStatus: "unmatched", matchScore: best?.score || 0 };
+  if (!best?.score || best.score <= MATCH_REVIEW_MIN_SCORE) {
+    return { productId: "", suggestedProductId: "", matchStatus: "ignored", matchScore: best?.score || 0 };
   }
   return { productId: "", suggestedProductId: best?.product?.id || "", matchStatus: "unmatched", matchScore: best?.score || 0 };
 }
@@ -1589,7 +1682,7 @@ function renderMatchQueue() {
     ? waiting.map(matchCard).join("")
     : emptyState(
         state.matchSearch ? "No imported rows match that search." : "No imported revenue rows are waiting for review.",
-        "Generic rows such as others stay ignored, but vague campaign rows with real titles or ASINs wait here."
+        "Rows at 2% or lower likely match are ignored automatically to keep this queue manageable."
       );
   $("#massUnmatchBtn").disabled = !waiting.length;
   $$("#matchQueue [data-approve]").forEach((button) => {

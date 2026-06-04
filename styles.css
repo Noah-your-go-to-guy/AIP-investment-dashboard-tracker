@@ -534,6 +534,52 @@ h3 {
   font-size: 1.05rem;
 }
 
+.product-csv-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.audit-summary-card {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.audit-summary-card div {
+  display: grid;
+  gap: 4px;
+}
+
+.audit-summary-card span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.audit-summary-card strong {
+  font-size: 1.1rem;
+}
+
+.csv-warning-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.csv-warning-row span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  color: #805d0e;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
 .import-history-panel,
 .import-maintenance {
   margin-top: 18px;
@@ -824,6 +870,30 @@ tbody tr:hover {
   color: var(--muted);
   font-size: 0.82rem;
   margin-top: 5px;
+}
+
+.product-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 7px;
+  font-size: 0.84rem;
+}
+
+.text-link {
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  padding: 0;
+  font: inherit;
+  font-weight: 900;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.text-link:hover {
+  color: var(--accent-strong);
 }
 
 .payback-cell,
@@ -1342,6 +1412,7 @@ dialog::backdrop {
   .metric-grid,
   .dashboard-grid,
   .setup-steps,
+  .audit-summary-card,
   .mapping-grid,
   .form-grid,
   .export-grid,

@@ -60,8 +60,10 @@
 - Fuzzy scoring considers likely title brand tokens such as `Peakeep` or `SlowMag` when brand columns are missing.
 - Match Review includes a searchable queue sorted by likeliest matches first; suggested and possible matches appear above truly unmatched rows.
 - Match Review includes an `All imported revenue rows` audit section so the user can search rows already imported, see where each row counted, and manually move/count a row under the correct product.
-- Imported revenue rows with generic/non-actionable labels such as `others` are marked `ignored` so they do not clutter Match Review. Vague but meaningful campaign/title rows, or rows with a real ASIN, should go to Match Review even when the best match score is low.
-- Existing ignored rows are repaired back into Match Review if they have a meaningful campaign/title or real ASIN, so older CSV imports are not permanently hidden by the previous low-confidence cleanup rule.
+- Product rows include a `CSV rows (#)` audit button beside `Open Amazon`; it opens a product-level attribution list of every imported CSV row currently counted toward that investment product.
+- Product CSV attribution rows include `Remove attribution`; this marks the imported CSV row ignored so it no longer counts toward that product, while keeping the original CSV row searchable in the broader revenue audit.
+- Imported revenue rows with generic/non-actionable labels or a 2% or lower likely-match score are marked `ignored` so they do not clutter Match Review. Exact ASIN/title matches, approved matches, and shared campaign/title repairs can still count automatically.
+- Existing ignored rows are repaired back into Match Review only when they have a meaningful campaign/title or real ASIN and their current best likely match is above the 2% review cutoff.
 - Match Review has a `Mass unmatch` button that marks all currently visible review rows as `ignored`; when search is active it only mass-unmatches the filtered/search-visible rows.
 - The imported revenue audit hides `ignored` rows by default and has a `Show ignored rows` checkbox for troubleshooting.
 - Exports for products, revenue, ROI summary, and full JSON backup.
