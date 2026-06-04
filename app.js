@@ -5,6 +5,8 @@ const STATUSES = ["researched", "bought", "received", "filmed", "posted", "earni
 const PURCHASED_STATUSES = ["bought", "received", "filmed", "posted", "earning", "paid off"];
 const VIDEO_STATUSES = ["not filmed", "filmed", "posted", "needs check"];
 const OPTIONAL_MAPPING = "Do not import";
+const MATCH_REVIEW_MIN_SCORE = 0.05;
+const MATCH_SUGGESTION_MIN_SCORE = 0.48;
 const IMPORT_FIELDS = [
   ["asin", "ASIN"],
   ["title", "Title"],
@@ -31,6 +33,7 @@ let state = {
   sortDirection: "desc",
   matchSearch: "",
   revenueAuditSearch: "",
+  showIgnoredAuditRows: false,
   pendingCsv: null,
   autofillSuggestion: null,
 };
@@ -44,6 +47,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
   await refreshState();
   await repairExactTitleRevenueMatches();
+  await excludeWeakRevenueMatches();
   render();
 });
 
@@ -127,6 +131,23 @@ async function repairExactTitleRevenueMatches() {
   if (fixed) await refreshState();
 }
 
+async function excludeWeakRevenueMatches() {
+  let fixed = 0;
+  for (const entry of state.revenueEntries) {
+    if (entry.productId || entry.matchStatus !== "unmatched") continue;
+    const score = reviewMatchScore(entry);
+    if (score >= MATCH_REVIEW_MIN_SCORE) continue;
+    await put("revenueEntries", {
+      ...entry,
+      suggestedProductId: "",
+      matchStatus: "ignored",
+      matchScore: 0,
+    });
+    fixed += 1;
+  }
+  if (fixed) await refreshState();
+}
+
 function bindEvents() {
   $$(".tab").forEach((button) => {
     button.addEventListener("click", () => switchTab(button.dataset.tab));
@@ -157,8 +178,13 @@ function bindEvents() {
     state.matchSearch = event.target.value.trim().toLowerCase();
     renderMatchQueue();
   });
+  $("#massUnmatchBtn").addEventListener("click", massUnmatchReviewRows);
   $("#revenueAuditSearch").addEventListener("input", (event) => {
     state.revenueAuditSearch = event.target.value.trim().toLowerCase();
+    renderRevenueAudit();
+  });
+  $("#showIgnoredAuditRows").addEventListener("change", (event) => {
+    state.showIgnoredAuditRows = event.target.checked;
     renderRevenueAudit();
   });
   $$(".sort-btn").forEach((button) => {
@@ -537,6 +563,7 @@ async function handleProductSubmit(event) {
   $("#productDialog").close();
   await refreshState();
   await repairExactTitleRevenueMatches();
+  await excludeWeakRevenueMatches();
   render();
   toast("Product saved.");
 }
@@ -547,12 +574,12 @@ async function deleteCurrentProduct() {
   await remove("products", productId);
   const affectedRevenue = state.revenueEntries.filter((entry) => entry.productId === productId);
   for (const entry of affectedRevenue) {
-    await put("revenueEntries", { ...entry, productId: "", matchStatus: "unmatched" });
+    await put("revenueEntries", { ...entry, productId: "", suggestedProductId: "", matchStatus: "ignored", matchScore: 0 });
   }
   $("#productDialog").close();
   await refreshState();
   render();
-  toast("Product deleted. Revenue rows were left unmatched.");
+  toast("Product deleted. Revenue rows were excluded from match review.");
 }
 
 function resetAutofillHelper() {
@@ -811,7 +838,7 @@ async function runImport() {
   await put("importBatches", batch);
 
   const importedFingerprints = new Set(state.revenueEntries.map(revenueFingerprint).filter(Boolean));
-  const summary = { exact: 0, approved: 0, suggested: 0, unmatched: 0, lookupOnly: 0, duplicate: 0 };
+  const summary = { exact: 0, approved: 0, suggested: 0, unmatched: 0, ignored: 0, lookupOnly: 0, duplicate: 0 };
   for (const row of state.pendingCsv.rows) {
     const normalized = normalizeImportRow(row, mapping, state.pendingCsv.fallbackDate);
     if (!normalized.amount) {
@@ -846,8 +873,8 @@ async function runImport() {
   $("#importSummary").innerHTML = `<article class="rank-card">
     <strong>Import complete</strong>
     <span>Money column: ${escapeHtml(mapping.amount || "Not mapped")} · Report date: ${escapeHtml(batch.reportDate || "mapped/default")}</span>
-    <span>Rows found: ${batch.rowCount} · Rows imported: ${summary.exact + summary.approved + summary.suggested + summary.unmatched} · Empty/no earnings skipped: ${summary.lookupOnly}</span>
-    <span>Exact: ${summary.exact} · Approved: ${summary.approved} · Suggested: ${summary.suggested} · Unmatched: ${summary.unmatched} · Duplicates skipped: ${summary.duplicate}</span>
+    <span>Rows found: ${batch.rowCount} · Rows imported: ${summary.exact + summary.approved + summary.suggested + summary.unmatched + summary.ignored} · Empty/no earnings skipped: ${summary.lookupOnly}</span>
+    <span>Exact: ${summary.exact} · Approved: ${summary.approved} · Suggested: ${summary.suggested} · Review unmatched: ${summary.unmatched} · Ignored under 5%: ${summary.ignored} · Duplicates skipped: ${summary.duplicate}</span>
   </article>`;
   await refreshState();
   render();
@@ -866,6 +893,7 @@ function renderImportHistory() {
     .map((batch) => {
       const importedRows = state.revenueEntries.filter((entry) => entry.importBatchId === batch.id).length;
       const duplicateCount = numberValue(batch.summary?.duplicate);
+      const ignoredCount = numberValue(batch.summary?.ignored);
       return `<article class="import-history-card">
         <div>
           <strong>${escapeHtml(batch.fileName || "Imported CSV")}</strong>
@@ -876,6 +904,7 @@ function renderImportHistory() {
           <div><dt>Money column</dt><dd>${escapeHtml(batch.mapping?.amount || "Not mapped")}</dd></div>
           <div><dt>Rows found</dt><dd>${numberValue(batch.rowCount)}</dd></div>
           <div><dt>Rows imported</dt><dd>${importedRows}</dd></div>
+          <div><dt>Ignored under 5%</dt><dd>${ignoredCount}</dd></div>
           <div><dt>Duplicates skipped</dt><dd>${duplicateCount}</dd></div>
         </dl>
       </article>`;
@@ -926,13 +955,16 @@ function findMatch(row) {
   if (approved) return { productId: approved.productId, suggestedProductId: "", matchStatus: "approved", matchScore: 1 };
 
   const best = bestProductMatch(row);
-  if (best?.score >= 0.48) {
+  if (best?.score >= MATCH_SUGGESTION_MIN_SCORE) {
     return {
       productId: "",
       suggestedProductId: best.product.id,
       matchStatus: "suggested",
       matchScore: best.score,
     };
+  }
+  if (!best?.score || best.score < MATCH_REVIEW_MIN_SCORE) {
+    return { productId: "", suggestedProductId: "", matchStatus: "ignored", matchScore: 0 };
   }
   return { productId: "", suggestedProductId: best?.product?.id || "", matchStatus: "unmatched", matchScore: best?.score || 0 };
 }
@@ -976,21 +1008,14 @@ function likelyTitleBrand(title = "") {
 }
 
 function renderMatchQueue() {
-  const query = normalizeText(state.matchSearch);
-  const waiting = state.revenueEntries
-    .filter((entry) => ["suggested", "unmatched"].includes(entry.matchStatus))
-    .filter((entry) => matchReviewText(entry).includes(query))
-    .sort((a, b) => {
-      const scoreSort = reviewMatchScore(b) - reviewMatchScore(a);
-      if (scoreSort) return scoreSort;
-      return numberValue(b.amount) - numberValue(a.amount);
-    });
+  const waiting = matchReviewRows();
   $("#matchQueue").innerHTML = waiting.length
     ? waiting.map(matchCard).join("")
     : emptyState(
         state.matchSearch ? "No imported rows match that search." : "No imported revenue rows are waiting for review.",
-        "Suggested and unmatched rows will appear here before they affect ROI."
+        "Rows with less than a 5% match score are ignored automatically and stay out of review."
       );
+  $("#massUnmatchBtn").disabled = !waiting.length;
   $$("#matchQueue [data-approve]").forEach((button) => {
     button.addEventListener("click", () => approveMatch(button.dataset.approve));
   });
@@ -1000,6 +1025,18 @@ function renderMatchQueue() {
   $$("#matchQueue [data-reject]").forEach((button) => {
     button.addEventListener("click", () => rejectMatch(button.dataset.reject));
   });
+}
+
+function matchReviewRows() {
+  const query = normalizeText(state.matchSearch);
+  return state.revenueEntries
+    .filter((entry) => ["suggested", "unmatched"].includes(entry.matchStatus))
+    .filter((entry) => matchReviewText(entry).includes(query))
+    .sort((a, b) => {
+      const scoreSort = reviewMatchScore(b) - reviewMatchScore(a);
+      if (scoreSort) return scoreSort;
+      return numberValue(b.amount) - numberValue(a.amount);
+    });
 }
 
 function matchCard(entry) {
@@ -1068,6 +1105,7 @@ function renderRevenueAudit() {
   const query = normalizeText(state.revenueAuditSearch);
   const imported = state.revenueEntries
     .filter((entry) => entry.source === "csv")
+    .filter((entry) => state.showIgnoredAuditRows || entry.matchStatus !== "ignored")
     .filter((entry) => revenueAuditText(entry).includes(query))
     .sort((a, b) => {
       const dateSort = String(b.date || "").localeCompare(String(a.date || ""));
@@ -1077,7 +1115,9 @@ function renderRevenueAudit() {
   if (!imported.length) {
     target.innerHTML = emptyState(
       state.revenueAuditSearch ? "No imported revenue rows match that search." : "No imported revenue rows yet.",
-      "Upload CSV earnings files to populate this audit list."
+      state.showIgnoredAuditRows
+        ? "Upload CSV earnings files to populate this audit list."
+        : "Ignored rows are hidden. Turn on Show ignored rows if you want to inspect them."
     );
     return;
   }
@@ -1199,10 +1239,10 @@ async function reassignRevenueEntry(entryId) {
 async function unmatchRevenueEntry(entryId) {
   const entry = state.revenueEntries.find((item) => item.id === entryId);
   if (!entry) return;
-  await put("revenueEntries", { ...entry, productId: "", suggestedProductId: "", matchStatus: "unmatched", matchScore: 0 });
+  await put("revenueEntries", { ...entry, productId: "", suggestedProductId: "", matchStatus: "ignored", matchScore: 0 });
   await refreshState();
   render();
-  toast("Revenue row left unmatched.");
+  toast("Revenue row excluded from match review.");
 }
 
 async function rejectMatch(entryId) {
@@ -1212,6 +1252,30 @@ async function rejectMatch(entryId) {
   await refreshState();
   render();
   toast("Suggested match rejected.");
+}
+
+async function massUnmatchReviewRows() {
+  const rows = matchReviewRows();
+  if (!rows.length) {
+    toast("No review rows to unmatch.");
+    return;
+  }
+  const searchNote = state.matchSearch ? " matching your current search" : "";
+  if (!confirm(`Mass unmatch ${rows.length} review row${rows.length === 1 ? "" : "s"}${searchNote}? They will be removed from Match Review but stay searchable in the revenue audit.`)) {
+    return;
+  }
+  for (const entry of rows) {
+    await put("revenueEntries", {
+      ...entry,
+      productId: "",
+      suggestedProductId: "",
+      matchStatus: "ignored",
+      matchScore: 0,
+    });
+  }
+  await refreshState();
+  render();
+  toast(`Mass unmatched ${rows.length} row${rows.length === 1 ? "" : "s"}.`);
 }
 
 function exportCsv(type) {
@@ -1344,9 +1408,14 @@ async function clearImportedRevenue() {
   for (const batch of state.importBatches) {
     await remove("importBatches", batch.id);
   }
+  state.pendingCsv = null;
+  $("#csvInput").value = "";
+  $("#mappingWizard").classList.add("hidden");
+  $("#mappingWizard").innerHTML = "";
+  $("#importSummary").innerHTML = "";
   await refreshState();
   render();
-  toast("CSV imports cleared. Products and manual entries were kept.");
+  toast("CSV data cleared. Products and manual entries were kept.");
 }
 
 async function seedDemoData() {

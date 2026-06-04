@@ -162,10 +162,10 @@
           </section>
           <div class="import-maintenance">
             <div>
-              <strong>Need to re-upload CSVs?</strong>
-              <span>Clear imported CSV revenue and import history without deleting your products.</span>
+              <strong>Need to restart CSV uploads?</strong>
+              <span>Clear imported CSV earnings, ignored rows, match-review rows, and import history without deleting your products.</span>
             </div>
-            <button id="clearImportedRevenueBtn" class="danger-btn" type="button">Clear CSV imports</button>
+            <button id="clearImportedRevenueBtn" class="danger-btn" type="button">Clear CSV data (keep products)</button>
           </div>
         </section>
       </section>
@@ -190,6 +190,7 @@
               <span aria-hidden="true">Search</span>
               <input id="matchSearch" type="search" placeholder="Search imported title, ASIN, brand, or product" />
             </div>
+            <button id="massUnmatchBtn" class="secondary-btn" type="button">Mass unmatch</button>
           </div>
           <div id="matchQueue" class="match-list"></div>
         </section>
@@ -205,6 +206,10 @@
               <span aria-hidden="true">Search</span>
               <input id="revenueAuditSearch" type="search" placeholder="Search all imported revenue rows" />
             </div>
+            <label class="inline-check">
+              <input id="showIgnoredAuditRows" type="checkbox" />
+              Show ignored rows
+            </label>
           </div>
           <div id="revenueAudit" class="match-list"></div>
         </section>

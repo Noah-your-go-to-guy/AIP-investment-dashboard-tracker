@@ -114,3 +114,18 @@ Backups and exported CSVs are ignored by Git by default so private data is not a
 See:
 
 [HOW_TO_SETUP.md](./HOW_TO_SETUP.md)
+
+## Host On Vercel
+
+This project can be hosted as a static Vercel site.
+
+For the first hosted version, data still stays in each user's browser. Supabase user accounts and cloud data storage are a later step.
+
+Recommended Vercel settings:
+
+- Framework preset: `Other`
+- Build command: leave empty
+- Output directory: leave empty or use `.`
+- Install command: leave empty
+
+After deployment, open the Vercel URL and use the dashboard normally.

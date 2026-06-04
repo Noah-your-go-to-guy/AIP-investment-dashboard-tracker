@@ -17,6 +17,8 @@
 - Linux users can run `node server.js` from Terminal unless a Linux launcher is added later.
 - The project has been pushed to GitHub at `https://github.com/Noah-your-go-to-guy/AIP-investment-dashboard-tracker`.
 - Latest pushed commit as of May 7, 2026: `66ad7ef Improve CSV revenue imports and match review`.
+- Vercel and Supabase connectors are available in Codex as of June 4, 2026. Supabase has one active healthy project `gvifstpfolidkvxjeftx`; Vercel has team `Noah's projects` with ID `team_H5iCAXyorr8oK9VS9fJtQqac`.
+- First hosted Vercel version should deploy the existing static app only. It will still use browser-local IndexedDB until a later Supabase migration adds auth and cloud data.
 
 ## Core Product Decisions
 - One investment record equals one bought product.
@@ -38,7 +40,7 @@
 - CSV import supports comma-separated and tab-separated files, and the mapping preview explicitly shows only the first five rows even though all rows import.
 - Creator Connections-style files should map income to `Total Earnings`, not `Commission Rate`, `Shipped Revenue`, or `Shipped Earnings`.
 - CSV filenames such as `apr 1 to 7 CC earnings.csv`, `April 24 to may 1 CC earnings.csv`, and `earnings_report_2026-04-12_to_2026-04-19.csv` are used to infer a report date when the CSV has no date column.
-- There is a `Clear CSV imports` action that removes imported CSV revenue and import history without deleting products, videos, costs, manual revenue, or approved matches.
+- There is a `Clear CSV data (keep products)` action that removes imported CSV revenue, ignored CSV rows, match-review CSV rows, pending import UI, and import history without deleting products, videos, costs, manual revenue, or approved matches.
 - Revenue matching by exact ASIN when possible.
 - Revenue matching also auto-counts exact title matches even when the ASIN differs, because Amazon often reports variation ASINs under the same product title.
 - On app load and after saving a product, existing unmatched/suggested revenue rows are repaired if their title exactly matches a saved product.
@@ -46,6 +48,9 @@
 - Fuzzy scoring considers likely title brand tokens such as `Peakeep` or `SlowMag` when brand columns are missing.
 - Match Review includes a searchable queue sorted by likeliest matches first; suggested and possible matches appear above truly unmatched rows.
 - Match Review includes an `All imported revenue rows` audit section so the user can search rows already imported, see where each row counted, and manually move/count a row under the correct product.
+- Imported revenue rows with less than a 5% best-match score are automatically marked `ignored` so they do not clutter Match Review. They are still visible in the imported revenue audit/search and can be manually assigned later if needed.
+- Match Review has a `Mass unmatch` button that marks all currently visible review rows as `ignored`; when search is active it only mass-unmatches the filtered/search-visible rows.
+- The imported revenue audit hides `ignored` rows by default and has a `Show ignored rows` checkbox for troubleshooting.
 - Exports for products, revenue, ROI summary, and full JSON backup.
 - Sample data button for quickly seeing dashboard behavior.
 - Purchased-products filter, per-product payback bars, storefront links, manual video status, and repeatable video records are part of the product ledger.

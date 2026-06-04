@@ -1,0 +1,13 @@
+node_modules/
+.npm-cache/
+tessdata/
+.git/
+
+*.log
+*.tmp
+*.bak
+
+aip-investment-dashboard-backup-*.json
+products-*.csv
+revenue-*.csv
+summary-*.csv
