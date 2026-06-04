@@ -54,12 +54,14 @@
 - There is a `Clear CSV data (keep products)` action that removes imported CSV revenue, ignored CSV rows, match-review CSV rows, pending import UI, and import history without deleting products, videos, costs, manual revenue, or approved matches.
 - Revenue matching by exact ASIN when possible.
 - Revenue matching also auto-counts exact title matches even when the ASIN differs, because Amazon often reports variation ASINs under the same product title.
+- Revenue matching repairs imported rows that share the same exact imported campaign/title text as another row already counted under one product. This catches Creator Connections campaign-code rows such as `P30S16` where several ASIN variants belong to the same campaign/product.
 - On app load and after saving a product, existing unmatched/suggested revenue rows are repaired if their title exactly matches a saved product.
 - Fuzzy match suggestions by title/brand/variation clues, but fuzzy matches must be approved before they affect ROI. Approved matches persist and should auto-count in future imports.
 - Fuzzy scoring considers likely title brand tokens such as `Peakeep` or `SlowMag` when brand columns are missing.
 - Match Review includes a searchable queue sorted by likeliest matches first; suggested and possible matches appear above truly unmatched rows.
 - Match Review includes an `All imported revenue rows` audit section so the user can search rows already imported, see where each row counted, and manually move/count a row under the correct product.
-- Imported revenue rows with less than a 5% best-match score are automatically marked `ignored` so they do not clutter Match Review. They are still visible in the imported revenue audit/search and can be manually assigned later if needed.
+- Imported revenue rows with generic/non-actionable labels such as `others` are marked `ignored` so they do not clutter Match Review. Vague but meaningful campaign/title rows, or rows with a real ASIN, should go to Match Review even when the best match score is low.
+- Existing ignored rows are repaired back into Match Review if they have a meaningful campaign/title or real ASIN, so older CSV imports are not permanently hidden by the previous low-confidence cleanup rule.
 - Match Review has a `Mass unmatch` button that marks all currently visible review rows as `ignored`; when search is active it only mass-unmatches the filtered/search-visible rows.
 - The imported revenue audit hides `ignored` rows by default and has a `Show ignored rows` checkbox for troubleshooting.
 - Exports for products, revenue, ROI summary, and full JSON backup.

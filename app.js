@@ -9,6 +9,18 @@ const VIDEO_STATUSES = ["not filmed", "filmed", "posted", "needs check"];
 const OPTIONAL_MAPPING = "Do not import";
 const MATCH_REVIEW_MIN_SCORE = 0.05;
 const MATCH_SUGGESTION_MIN_SCORE = 0.48;
+const GENERIC_IMPORT_LABELS = new Set([
+  "other",
+  "others",
+  "unknown",
+  "not available",
+  "not set",
+  "no title",
+  "no asin",
+  "none",
+  "misc",
+  "miscellaneous",
+]);
 const IMPORT_FIELDS = [
   ["asin", "ASIN"],
   ["title", "Title"],
@@ -56,6 +68,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
   await refreshState();
   await repairExactTitleRevenueMatches();
+  await repairSharedImportTitleRevenueMatches();
+  await restoreActionableIgnoredRevenueRows();
   await excludeWeakRevenueMatches();
   render();
 });
@@ -103,6 +117,8 @@ async function initSupabase() {
     state.cloudUser = session?.user || null;
     await refreshState();
     await repairExactTitleRevenueMatches();
+    await repairSharedImportTitleRevenueMatches();
+    await restoreActionableIgnoredRevenueRows();
     await excludeWeakRevenueMatches();
     render();
   });
@@ -255,12 +271,62 @@ async function repairExactTitleRevenueMatches() {
   if (fixed) await refreshState();
 }
 
+async function repairSharedImportTitleRevenueMatches() {
+  const titleProducts = new Map();
+  for (const entry of state.revenueEntries) {
+    if (!entry.productId || entry.matchStatus === "rejected") continue;
+    if (!hasActionableImportIdentity(entry)) continue;
+    const titleKey = normalizeText(entry.title);
+    if (!titleKey) continue;
+    const productIds = titleProducts.get(titleKey) || new Set();
+    productIds.add(entry.productId);
+    titleProducts.set(titleKey, productIds);
+  }
+
+  let fixed = 0;
+  for (const entry of state.revenueEntries) {
+    if (entry.productId || entry.matchStatus === "rejected") continue;
+    if (!hasActionableImportIdentity(entry)) continue;
+    const titleKey = normalizeText(entry.title);
+    const productIds = titleProducts.get(titleKey);
+    if (!titleKey || !productIds || productIds.size !== 1) continue;
+    const [productId] = [...productIds];
+    await put("revenueEntries", {
+      ...entry,
+      productId,
+      suggestedProductId: "",
+      matchStatus: "exact",
+      matchScore: 1,
+    });
+    fixed += 1;
+  }
+  if (fixed) await refreshState();
+}
+
+async function restoreActionableIgnoredRevenueRows() {
+  let fixed = 0;
+  for (const entry of state.revenueEntries) {
+    if (entry.productId || entry.matchStatus !== "ignored") continue;
+    if (!hasActionableImportIdentity(entry)) continue;
+    const candidate = bestProductMatch(entry);
+    await put("revenueEntries", {
+      ...entry,
+      suggestedProductId: candidate?.product?.id || "",
+      matchStatus: candidate?.score >= MATCH_SUGGESTION_MIN_SCORE ? "suggested" : "unmatched",
+      matchScore: candidate?.score || 0,
+    });
+    fixed += 1;
+  }
+  if (fixed) await refreshState();
+}
+
 async function excludeWeakRevenueMatches() {
   let fixed = 0;
   for (const entry of state.revenueEntries) {
     if (entry.productId || entry.matchStatus !== "unmatched") continue;
     const score = reviewMatchScore(entry);
     if (score >= MATCH_REVIEW_MIN_SCORE) continue;
+    if (hasActionableImportIdentity(entry)) continue;
     await put("revenueEntries", {
       ...entry,
       suggestedProductId: "",
@@ -427,6 +493,10 @@ async function signInToCloud() {
   }
   $("#authPassword").value = "";
   await refreshState();
+  await repairExactTitleRevenueMatches();
+  await repairSharedImportTitleRevenueMatches();
+  await restoreActionableIgnoredRevenueRows();
+  await excludeWeakRevenueMatches();
   render();
   toast("Signed in. Your cloud dashboard is active.");
 }
@@ -526,6 +596,10 @@ async function copyLocalDataToCloud() {
     }
   }
   await refreshState();
+  await repairExactTitleRevenueMatches();
+  await repairSharedImportTitleRevenueMatches();
+  await restoreActionableIgnoredRevenueRows();
+  await excludeWeakRevenueMatches();
   render();
   toast("Local data copied to cloud.");
 }
@@ -999,6 +1073,8 @@ async function handleProductSubmit(event) {
   $("#productDialog").close();
   await refreshState();
   await repairExactTitleRevenueMatches();
+  await repairSharedImportTitleRevenueMatches();
+  await restoreActionableIgnoredRevenueRows();
   await excludeWeakRevenueMatches();
   render();
   toast("Product saved.");
@@ -1344,9 +1420,13 @@ async function runImport() {
       <strong>Import complete</strong>
       <span>Money column: ${escapeHtml(mapping.amount || "Not mapped")} · Report date: ${escapeHtml(batch.reportDate || "mapped/default")}</span>
       <span>Rows found: ${batch.rowCount} · Rows imported: ${summary.exact + summary.approved + summary.suggested + summary.unmatched + summary.ignored} · Empty/no earnings skipped: ${summary.lookupOnly}</span>
-      <span>Exact: ${summary.exact} · Approved: ${summary.approved} · Suggested: ${summary.suggested} · Review unmatched: ${summary.unmatched} · Ignored under 5%: ${summary.ignored} · Duplicates skipped: ${summary.duplicate}</span>
+      <span>Exact: ${summary.exact} · Approved: ${summary.approved} · Suggested: ${summary.suggested} · Review unmatched: ${summary.unmatched} · Ignored generic/noise: ${summary.ignored} · Duplicates skipped: ${summary.duplicate}</span>
     </article>`;
     await refreshState();
+    await repairExactTitleRevenueMatches();
+    await repairSharedImportTitleRevenueMatches();
+    await restoreActionableIgnoredRevenueRows();
+    await excludeWeakRevenueMatches();
     render();
     toast("CSV import complete.");
   } catch (error) {
@@ -1388,7 +1468,7 @@ function renderImportHistory() {
           <div><dt>Money column</dt><dd>${escapeHtml(batch.mapping?.amount || "Not mapped")}</dd></div>
           <div><dt>Rows found</dt><dd>${numberValue(batch.rowCount)}</dd></div>
           <div><dt>Rows imported</dt><dd>${importedRows}</dd></div>
-          <div><dt>Ignored under 5%</dt><dd>${ignoredCount}</dd></div>
+          <div><dt>Ignored generic/noise</dt><dd>${ignoredCount}</dd></div>
           <div><dt>Duplicates skipped</dt><dd>${duplicateCount}</dd></div>
         </dl>
       </article>`;
@@ -1447,9 +1527,22 @@ function findMatch(row) {
     };
   }
   if (!best?.score || best.score < MATCH_REVIEW_MIN_SCORE) {
-    return { productId: "", suggestedProductId: "", matchStatus: "ignored", matchScore: 0 };
+    if (!hasActionableImportIdentity(row)) {
+      return { productId: "", suggestedProductId: "", matchStatus: "ignored", matchScore: 0 };
+    }
+    return { productId: "", suggestedProductId: best?.product?.id || "", matchStatus: "unmatched", matchScore: best?.score || 0 };
   }
   return { productId: "", suggestedProductId: best?.product?.id || "", matchStatus: "unmatched", matchScore: best?.score || 0 };
+}
+
+function hasActionableImportIdentity(row = {}) {
+  if (isLikelyAsin(row.asin)) return true;
+  const title = normalizeText(row.title);
+  return title.length > 2 && !GENERIC_IMPORT_LABELS.has(title);
+}
+
+function isLikelyAsin(value = "") {
+  return /^[A-Z0-9]{10}$/.test(normalizeAsin(value));
 }
 
 function findExactTitleProduct(row) {
@@ -1496,7 +1589,7 @@ function renderMatchQueue() {
     ? waiting.map(matchCard).join("")
     : emptyState(
         state.matchSearch ? "No imported rows match that search." : "No imported revenue rows are waiting for review.",
-        "Rows with less than a 5% match score are ignored automatically and stay out of review."
+        "Generic rows such as others stay ignored, but vague campaign rows with real titles or ASINs wait here."
       );
   $("#massUnmatchBtn").disabled = !waiting.length;
   $$("#matchQueue [data-approve]").forEach((button) => {
