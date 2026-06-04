@@ -231,7 +231,10 @@
               <strong>Need to restart CSV uploads?</strong>
               <span>Clear imported CSV earnings, ignored rows, match-review rows, and import history without deleting your products.</span>
             </div>
-            <button id="clearImportedRevenueBtn" class="danger-btn" type="button">Clear CSV data (keep products)</button>
+            <div class="maintenance-actions">
+              <button id="dedupeCsvRevenueBtn" class="secondary-btn" type="button">Remove duplicate CSV rows</button>
+              <button id="clearImportedRevenueBtn" class="danger-btn" type="button">Clear CSV data (keep products)</button>
+            </div>
           </div>
         </section>
       </section>

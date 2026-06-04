@@ -592,6 +592,13 @@ h3 {
   align-items: center;
 }
 
+.maintenance-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .rank-stat,
 .money-positive {
   color: var(--accent-strong);

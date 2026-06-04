@@ -171,6 +171,31 @@ async function put(storeName, value) {
   return value;
 }
 
+async function putMany(storeName, values = []) {
+  if (!values.length) return [];
+  if (!cloudStorageActive()) {
+    await Promise.all(values.map((value) => localPut(storeName, value)));
+    return values;
+  }
+  const rows = values.map((value) => {
+    if (!value?.id) throw new Error(`Cannot save ${storeName} without an id.`);
+    return {
+      user_id: state.cloudUser.id,
+      store: storeName,
+      id: value.id,
+      data: value,
+    };
+  });
+  const chunkSize = 500;
+  for (let index = 0; index < rows.length; index += chunkSize) {
+    const { error } = await supabaseClient
+      .from("dashboard_records")
+      .upsert(rows.slice(index, index + chunkSize), { onConflict: "user_id,store,id" });
+    if (error) throw error;
+  }
+  return values;
+}
+
 async function remove(storeName, id) {
   if (!cloudStorageActive()) return localRemove(storeName, id);
   const { error } = await supabaseClient.from("dashboard_records").delete().eq("store", storeName).eq("id", id);
@@ -296,6 +321,7 @@ function bindEvents() {
   $("#backupInput").addEventListener("change", importBackup);
   $("#clearDataBtn").addEventListener("click", clearAllData);
   $("#clearImportedRevenueBtn").addEventListener("click", clearImportedRevenue);
+  $("#dedupeCsvRevenueBtn").addEventListener("click", removeDuplicateCsvRevenueRows);
   $("#seedDemoBtn").addEventListener("click", seedDemoData);
   $("#signInBtn").addEventListener("click", signInToCloud);
   $("#signUpBtn").addEventListener("click", signUpForCloud);
@@ -1166,7 +1192,12 @@ async function handleCsvSelection(event) {
     toast("That CSV did not contain readable rows.");
     return;
   }
-  state.pendingCsv = { fileName: file.name, rows, fallbackDate: inferReportDateFromFileName(file.name) };
+  state.pendingCsv = {
+    fileName: file.name,
+    fileHash: await hashText(text),
+    rows,
+    fallbackDate: inferReportDateFromFileName(file.name),
+  };
   renderMappingWizard(file.name, rows);
 }
 
@@ -1216,60 +1247,103 @@ function previewTable(rows, headers) {
 
 async function runImport() {
   if (!state.pendingCsv) return;
-  const mapping = Object.fromEntries($$("[data-map]").map((select) => [select.dataset.map, select.value]));
-  const batch = {
-    id: crypto.randomUUID(),
-    fileName: state.pendingCsv.fileName,
-    createdAt: new Date().toISOString(),
-    mapping,
-    reportDate: state.pendingCsv.fallbackDate || "",
-    rowCount: state.pendingCsv.rows.length,
-    rawRows: state.pendingCsv.rows,
-  };
-  await put("importBatches", batch);
-
-  const importedFingerprints = new Set(state.revenueEntries.map(revenueFingerprint).filter(Boolean));
-  const summary = { exact: 0, approved: 0, suggested: 0, unmatched: 0, ignored: 0, lookupOnly: 0, duplicate: 0 };
-  for (const row of state.pendingCsv.rows) {
-    const normalized = normalizeImportRow(row, mapping, state.pendingCsv.fallbackDate);
-    if (!normalized.amount) {
-      summary.lookupOnly += 1;
-      continue;
-    }
-    const fingerprint = revenueFingerprint(normalized);
-    if (fingerprint && importedFingerprints.has(fingerprint)) {
-      summary.duplicate += 1;
-      continue;
-    }
-    if (fingerprint) importedFingerprints.add(fingerprint);
-    const match = findMatch(normalized);
-    summary[match.matchStatus] += 1;
-    await put("revenueEntries", {
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      source: "csv",
-      importBatchId: batch.id,
-      fingerprint,
-      raw: row,
-      ...normalized,
-      ...match,
-    });
+  const importButton = $("#runImportBtn");
+  if (importButton) {
+    importButton.disabled = true;
+    importButton.textContent = "Importing...";
   }
-  batch.summary = summary;
-  await put("importBatches", batch);
-  state.pendingCsv = null;
-  $("#csvInput").value = "";
-  $("#mappingWizard").classList.add("hidden");
-  $("#mappingWizard").innerHTML = "";
   $("#importSummary").innerHTML = `<article class="rank-card">
-    <strong>Import complete</strong>
-    <span>Money column: ${escapeHtml(mapping.amount || "Not mapped")} · Report date: ${escapeHtml(batch.reportDate || "mapped/default")}</span>
-    <span>Rows found: ${batch.rowCount} · Rows imported: ${summary.exact + summary.approved + summary.suggested + summary.unmatched + summary.ignored} · Empty/no earnings skipped: ${summary.lookupOnly}</span>
-    <span>Exact: ${summary.exact} · Approved: ${summary.approved} · Suggested: ${summary.suggested} · Review unmatched: ${summary.unmatched} · Ignored under 5%: ${summary.ignored} · Duplicates skipped: ${summary.duplicate}</span>
+    <strong>Importing CSV...</strong>
+    <span>Saving rows now. Keep this tab open until the import complete message appears.</span>
   </article>`;
-  await refreshState();
-  render();
-  toast("CSV import complete.");
+  try {
+    const duplicateBatch = state.pendingCsv.fileHash
+      ? state.importBatches.find((batch) => batch.fileHash && batch.fileHash === state.pendingCsv.fileHash)
+      : null;
+    if (duplicateBatch) {
+      $("#importSummary").innerHTML = `<article class="rank-card rank-negative">
+        <strong>Duplicate CSV blocked</strong>
+        <span>${escapeHtml(state.pendingCsv.fileName)} already appears to have been imported on ${escapeHtml(formatDateTime(duplicateBatch.createdAt))}.</span>
+        <span>No rows were imported. Use Clear CSV data or Remove duplicate CSV rows if you need to fix a past upload.</span>
+      </article>`;
+      toast("Duplicate CSV blocked. No rows were imported.");
+      return;
+    }
+    const mapping = Object.fromEntries($$("[data-map]").map((select) => [select.dataset.map, select.value]));
+    const batch = {
+      id: crypto.randomUUID(),
+      fileName: state.pendingCsv.fileName,
+      fileHash: state.pendingCsv.fileHash || "",
+      createdAt: new Date().toISOString(),
+      mapping,
+      reportDate: state.pendingCsv.fallbackDate || "",
+      rowCount: state.pendingCsv.rows.length,
+      rawRows: state.pendingCsv.rows,
+    };
+    await put("importBatches", batch);
+
+    const importedFingerprints = new Set(state.revenueEntries.map(revenueFingerprint).filter(Boolean));
+    const summary = { exact: 0, approved: 0, suggested: 0, unmatched: 0, ignored: 0, lookupOnly: 0, duplicate: 0 };
+    const revenueRows = [];
+    for (const row of state.pendingCsv.rows) {
+      const normalized = normalizeImportRow(row, mapping, state.pendingCsv.fallbackDate);
+      if (!normalized.amount) {
+        summary.lookupOnly += 1;
+        continue;
+      }
+      const fingerprint = revenueFingerprint(normalized);
+      if (fingerprint && importedFingerprints.has(fingerprint)) {
+        summary.duplicate += 1;
+        continue;
+      }
+      if (fingerprint) importedFingerprints.add(fingerprint);
+      const match = findMatch(normalized);
+      summary[match.matchStatus] += 1;
+      revenueRows.push({
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        source: "csv",
+        importBatchId: batch.id,
+        fingerprint,
+        raw: row,
+        ...normalized,
+        ...match,
+      });
+    }
+    $("#importSummary").innerHTML = `<article class="rank-card">
+      <strong>Saving ${revenueRows.length} earning row${revenueRows.length === 1 ? "" : "s"}...</strong>
+      <span>Duplicates and empty earnings have already been skipped. Finalizing the import now.</span>
+    </article>`;
+    await putMany("revenueEntries", revenueRows);
+    batch.summary = summary;
+    await put("importBatches", batch);
+    state.pendingCsv = null;
+    $("#csvInput").value = "";
+    $("#mappingWizard").classList.add("hidden");
+    $("#mappingWizard").innerHTML = "";
+    $("#importSummary").innerHTML = `<article class="rank-card">
+      <strong>Import complete</strong>
+      <span>Money column: ${escapeHtml(mapping.amount || "Not mapped")} · Report date: ${escapeHtml(batch.reportDate || "mapped/default")}</span>
+      <span>Rows found: ${batch.rowCount} · Rows imported: ${summary.exact + summary.approved + summary.suggested + summary.unmatched + summary.ignored} · Empty/no earnings skipped: ${summary.lookupOnly}</span>
+      <span>Exact: ${summary.exact} · Approved: ${summary.approved} · Suggested: ${summary.suggested} · Review unmatched: ${summary.unmatched} · Ignored under 5%: ${summary.ignored} · Duplicates skipped: ${summary.duplicate}</span>
+    </article>`;
+    await refreshState();
+    render();
+    toast("CSV import complete.");
+  } catch (error) {
+    console.error("CSV import failed", error);
+    $("#importSummary").innerHTML = `<article class="rank-card rank-negative">
+      <strong>CSV import failed</strong>
+      <span>${escapeHtml(error?.message || "Something went wrong while saving the CSV.")}</span>
+      <span>No need to guess. Try again, or export a backup before troubleshooting.</span>
+    </article>`;
+    toast("CSV import failed. See the import summary.");
+  } finally {
+    if (state.pendingCsv && importButton) {
+      importButton.disabled = false;
+      importButton.textContent = "Import rows";
+    }
+  }
 }
 
 function renderImportHistory() {
@@ -1320,9 +1394,8 @@ function normalizeImportRow(row, mapping, fallbackDate = "") {
 }
 
 function revenueFingerprint(row = {}) {
-  if (row.fingerprint) return row.fingerprint;
   const amount = numberValue(row.amount);
-  if (!row.date || !amount) return "";
+  if (!row.date || !amount) return row.fingerprint || "";
   return [
     normalizeDate(row.date) || row.date,
     normalizeAsin(row.asin),
@@ -1807,6 +1880,34 @@ async function clearImportedRevenue() {
   await refreshState();
   render();
   toast("CSV data cleared. Products and manual entries were kept.");
+}
+
+async function removeDuplicateCsvRevenueRows() {
+  const seen = new Map();
+  const duplicates = [];
+  const csvRevenue = state.revenueEntries
+    .filter((entry) => entry.source === "csv")
+    .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+  for (const entry of csvRevenue) {
+    const fingerprint = revenueFingerprint(entry);
+    if (!fingerprint) continue;
+    if (seen.has(fingerprint)) {
+      duplicates.push(entry);
+    } else {
+      seen.set(fingerprint, entry.id);
+    }
+  }
+  if (!duplicates.length) {
+    toast("No duplicate CSV rows found.");
+    return;
+  }
+  if (!confirm(`Remove ${duplicates.length} duplicate CSV revenue row${duplicates.length === 1 ? "" : "s"}? Products and the first copy of each row will be kept.`)) return;
+  for (const entry of duplicates) {
+    await remove("revenueEntries", entry.id);
+  }
+  await refreshState();
+  render();
+  toast(`Removed ${duplicates.length} duplicate CSV row${duplicates.length === 1 ? "" : "s"}.`);
 }
 
 async function seedDemoData() {
@@ -2370,6 +2471,20 @@ function formatMonth(month) {
 
 function money(value) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(numberValue(value));
+}
+
+async function hashText(value = "") {
+  const text = String(value || "");
+  if (window.crypto?.subtle) {
+    const bytes = new TextEncoder().encode(text);
+    const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+    return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash * 31 + text.charCodeAt(index)) >>> 0;
+  }
+  return `fallback-${hash.toString(16)}-${text.length}`;
 }
 
 function titleCase(value = "") {
