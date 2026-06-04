@@ -172,6 +172,52 @@ h3 {
   text-transform: uppercase;
 }
 
+.cloud-account {
+  flex: 1 1 680px;
+  display: grid;
+  grid-template-columns: minmax(180px, 0.65fr) minmax(360px, 1.35fr);
+  gap: 10px;
+  align-items: center;
+  min-width: min(680px, 100%);
+  padding: 8px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.cloud-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.cloud-copy strong {
+  font-size: 0.9rem;
+}
+
+.cloud-copy span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.cloud-auth-fields,
+.cloud-signed-in-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cloud-auth-fields input {
+  min-width: 150px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: white;
+}
+
 .tabs {
   position: sticky;
   top: 0;
@@ -1221,6 +1267,22 @@ dialog::backdrop {
   .action-label {
     width: 100%;
     padding-left: 0;
+  }
+
+  .cloud-account {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .cloud-auth-fields,
+  .cloud-signed-in-actions {
+    justify-content: stretch;
+  }
+
+  .cloud-auth-fields input,
+  .cloud-auth-fields button,
+  .cloud-signed-in-actions button {
+    width: 100%;
   }
 
   .header-actions > *,

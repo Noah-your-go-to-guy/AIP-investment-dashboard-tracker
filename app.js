@@ -1,5 +1,7 @@
 ﻿const DB_NAME = "aip-investment-dashboard";
 const DB_VERSION = 1;
+const SUPABASE_URL = "https://gvifstpfolidkvxjeftx.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_fnM9Bw4WbLAqibtuCv2pJA_hMwErdoC";
 const STORES = ["products", "revenueEntries", "approvedMatches", "importBatches"];
 const STATUSES = ["researched", "bought", "received", "filmed", "posted", "earning", "paid off", "retired"];
 const PURCHASED_STATUSES = ["bought", "received", "filmed", "posted", "earning", "paid off"];
@@ -21,6 +23,7 @@ const IMPORT_FIELDS = [
 ];
 
 let db;
+let supabaseClient = null;
 let state = {
   products: [],
   revenueEntries: [],
@@ -34,6 +37,8 @@ let state = {
   matchSearch: "",
   revenueAuditSearch: "",
   showIgnoredAuditRows: false,
+  cloudAvailable: false,
+  cloudUser: null,
   pendingCsv: null,
   autofillSuggestion: null,
 };
@@ -43,6 +48,7 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 document.addEventListener("DOMContentLoaded", async () => {
   db = await openDb();
+  await initSupabase();
   populateStatusControls();
   bindEvents();
   await refreshState();
@@ -71,7 +77,33 @@ function tx(storeName, mode = "readonly") {
   return db.transaction(storeName, mode).objectStore(storeName);
 }
 
-function getAll(storeName) {
+async function initSupabase() {
+  if (!window.supabase || !SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    state.cloudAvailable = false;
+    return;
+  }
+  state.cloudAvailable = true;
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    console.warn("Supabase session check failed", error);
+    return;
+  }
+  state.cloudUser = data.session?.user || null;
+  supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    state.cloudUser = session?.user || null;
+    await refreshState();
+    await repairExactTitleRevenueMatches();
+    await excludeWeakRevenueMatches();
+    render();
+  });
+}
+
+function cloudStorageActive() {
+  return Boolean(supabaseClient && state.cloudUser);
+}
+
+function localGetAll(storeName) {
   return new Promise((resolve, reject) => {
     const request = tx(storeName).getAll();
     request.onsuccess = () => resolve(request.result || []);
@@ -79,7 +111,7 @@ function getAll(storeName) {
   });
 }
 
-function put(storeName, value) {
+function localPut(storeName, value) {
   return new Promise((resolve, reject) => {
     const request = tx(storeName, "readwrite").put(value);
     request.onsuccess = () => resolve(value);
@@ -87,7 +119,7 @@ function put(storeName, value) {
   });
 }
 
-function remove(storeName, id) {
+function localRemove(storeName, id) {
   return new Promise((resolve, reject) => {
     const request = tx(storeName, "readwrite").delete(id);
     request.onsuccess = () => resolve();
@@ -95,12 +127,51 @@ function remove(storeName, id) {
   });
 }
 
-function clearStore(storeName) {
+function localClearStore(storeName) {
   return new Promise((resolve, reject) => {
     const request = tx(storeName, "readwrite").clear();
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
+}
+
+async function getAll(storeName) {
+  if (!cloudStorageActive()) return localGetAll(storeName);
+  const { data, error } = await supabaseClient
+    .from("dashboard_records")
+    .select("data")
+    .eq("store", storeName)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return (data || []).map((row) => row.data).filter(Boolean);
+}
+
+async function put(storeName, value) {
+  if (!cloudStorageActive()) return localPut(storeName, value);
+  if (!value?.id) throw new Error(`Cannot save ${storeName} without an id.`);
+  const { error } = await supabaseClient.from("dashboard_records").upsert(
+    {
+      user_id: state.cloudUser.id,
+      store: storeName,
+      id: value.id,
+      data: value,
+    },
+    { onConflict: "user_id,store,id" }
+  );
+  if (error) throw error;
+  return value;
+}
+
+async function remove(storeName, id) {
+  if (!cloudStorageActive()) return localRemove(storeName, id);
+  const { error } = await supabaseClient.from("dashboard_records").delete().eq("store", storeName).eq("id", id);
+  if (error) throw error;
+}
+
+async function clearStore(storeName) {
+  if (!cloudStorageActive()) return localClearStore(storeName);
+  const { error } = await supabaseClient.from("dashboard_records").delete().eq("store", storeName);
+  if (error) throw error;
 }
 
 async function refreshState() {
@@ -205,6 +276,10 @@ function bindEvents() {
   $("#clearDataBtn").addEventListener("click", clearAllData);
   $("#clearImportedRevenueBtn").addEventListener("click", clearImportedRevenue);
   $("#seedDemoBtn").addEventListener("click", seedDemoData);
+  $("#signInBtn").addEventListener("click", signInToCloud);
+  $("#signUpBtn").addEventListener("click", signUpForCloud);
+  $("#signOutBtn").addEventListener("click", signOutOfCloud);
+  $("#copyLocalToCloudBtn").addEventListener("click", copyLocalDataToCloud);
   $("#extractAsinBtn").addEventListener("click", handleExtractAsin);
   $("#lookupImportsBtn").addEventListener("click", handleImportLookup);
   $("#copyBookmarkletBtn").addEventListener("click", copyBookmarklet);
@@ -230,6 +305,7 @@ function switchTab(tabName) {
 }
 
 function render() {
+  renderCloudAccount();
   renderMetrics();
   renderTrendChart();
   renderRankings();
@@ -238,6 +314,105 @@ function render() {
   renderRevenueProductOptions();
   renderMatchQueue();
   renderRevenueAudit();
+}
+
+function renderCloudAccount() {
+  const signedIn = cloudStorageActive();
+  $("#cloudStatusTitle").textContent = signedIn ? "Cloud account" : "Local browser";
+  $("#cloudStatusNote").textContent = signedIn
+    ? `Signed in as ${state.cloudUser.email || "Supabase user"}`
+    : state.cloudAvailable
+      ? "Sign in to save dashboard data in Supabase."
+      : "Cloud login unavailable. Local browser data is still active.";
+  $("#cloudAuthFields").classList.toggle("hidden", signedIn || !state.cloudAvailable);
+  $("#cloudSignedInActions").classList.toggle("hidden", !signedIn);
+}
+
+function getAuthCredentials() {
+  return {
+    email: $("#authEmail").value.trim(),
+    password: $("#authPassword").value,
+  };
+}
+
+async function signInToCloud() {
+  if (!supabaseClient) {
+    toast("Cloud login is not available yet.");
+    return;
+  }
+  const { email, password } = getAuthCredentials();
+  if (!email || !password) {
+    toast("Enter an email and password first.");
+    return;
+  }
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) {
+    toast(error.message);
+    return;
+  }
+  $("#authPassword").value = "";
+  toast("Signed in. Cloud dashboard loaded.");
+}
+
+async function signUpForCloud() {
+  if (!supabaseClient) {
+    toast("Cloud login is not available yet.");
+    return;
+  }
+  const { email, password } = getAuthCredentials();
+  if (!email || !password) {
+    toast("Enter an email and password first.");
+    return;
+  }
+  if (password.length < 6) {
+    toast("Use a password with at least 6 characters.");
+    return;
+  }
+  const { data, error } = await supabaseClient.auth.signUp({ email, password });
+  if (error) {
+    toast(error.message);
+    return;
+  }
+  $("#authPassword").value = "";
+  toast(data.session ? "Account created. Cloud dashboard loaded." : "Account created. Check your email if Supabase asks you to confirm it.");
+}
+
+async function signOutOfCloud() {
+  if (!supabaseClient) return;
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    toast(error.message);
+    return;
+  }
+  toast("Signed out. Local browser data is active.");
+}
+
+async function copyLocalDataToCloud() {
+  if (!cloudStorageActive()) {
+    toast("Sign in before copying local data to cloud.");
+    return;
+  }
+  const localRecords = {};
+  let recordCount = 0;
+  for (const storeName of STORES) {
+    localRecords[storeName] = await localGetAll(storeName);
+    recordCount += localRecords[storeName].length;
+  }
+  if (!recordCount) {
+    toast("No local browser data found to copy.");
+    return;
+  }
+  if (!confirm(`Copy ${recordCount} local record${recordCount === 1 ? "" : "s"} to your cloud account? Existing cloud records with the same IDs will be updated.`)) {
+    return;
+  }
+  for (const storeName of STORES) {
+    for (const item of localRecords[storeName]) {
+      await put(storeName, item);
+    }
+  }
+  await refreshState();
+  render();
+  toast("Local data copied to cloud.");
 }
 
 function getProductStats(product) {

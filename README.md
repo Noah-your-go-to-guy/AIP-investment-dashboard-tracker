@@ -1,8 +1,8 @@
 # AIP Investment Dashboard
 
-A local browser app for tracking Amazon Influencer Program investment products, product-level commissions, ROI, CSV imports, approved listing matches, video links, payback progress, and exports.
+An Amazon Influencer Program dashboard for tracking product investments, product-level commissions, ROI, CSV imports, approved listing matches, video links, payback progress, and exports.
 
-Your data stays on your own computer in your browser.
+The app can run locally or on Vercel. Signed-out users store data in their own browser. Signed-in users can store dashboard records in Supabase.
 
 ## Install From GitHub
 
@@ -103,7 +103,11 @@ Exact ASIN matches count automatically. Approved matches persist for future impo
 
 ## Data And Backups
 
-The dashboard stores data locally in the browser using IndexedDB.
+Signed-out users store data locally in the browser using IndexedDB.
+
+Signed-in users store dashboard records in Supabase. Each user's records are protected by Supabase row-level security.
+
+If you already have local browser data, sign in and click `Copy local data to cloud` to move those records into your Supabase account.
 
 Use `Export backup` before clearing browser data, moving computers, or making major changes.
 
@@ -119,7 +123,7 @@ See:
 
 This project can be hosted as a static Vercel site.
 
-For the first hosted version, data still stays in each user's browser. Supabase user accounts and cloud data storage are a later step.
+The hosted version can use Supabase accounts and cloud data storage. Users can still use local browser storage when signed out.
 
 Recommended Vercel settings:
 

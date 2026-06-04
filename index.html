@@ -23,6 +23,22 @@
     <main class="shell">
       <div class="header-actions">
         <span class="action-label">Workspace</span>
+        <div id="cloudAccount" class="cloud-account">
+          <div class="cloud-copy">
+            <strong id="cloudStatusTitle">Local browser</strong>
+            <span id="cloudStatusNote">Sign in to save dashboard data in Supabase.</span>
+          </div>
+          <div id="cloudAuthFields" class="cloud-auth-fields">
+            <input id="authEmail" type="email" autocomplete="email" placeholder="Email" />
+            <input id="authPassword" type="password" autocomplete="current-password" placeholder="Password" />
+            <button id="signInBtn" class="secondary-btn" type="button">Sign in</button>
+            <button id="signUpBtn" class="ghost-btn" type="button">Create account</button>
+          </div>
+          <div id="cloudSignedInActions" class="cloud-signed-in-actions hidden">
+            <button id="copyLocalToCloudBtn" class="secondary-btn" type="button">Copy local data to cloud</button>
+            <button id="signOutBtn" class="ghost-btn" type="button">Sign out</button>
+          </div>
+        </div>
         <button id="seedDemoBtn" class="ghost-btn" type="button">Load sample data</button>
         <button id="exportBackupBtn" class="secondary-btn" type="button">Export backup</button>
         <label class="secondary-btn file-btn">
@@ -389,6 +405,7 @@
     </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./app.js"></script>
   </body>
 </html>

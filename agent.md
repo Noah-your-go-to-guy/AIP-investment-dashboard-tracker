@@ -9,7 +9,12 @@
 - The app is dependency-free: static `index.html`, `styles.css`, `app.js`, plus `server.js` for local serving.
 - There is no `npm install` dependency step anymore, but users still need Node.js installed so `server.js` and `start-dashboard.cmd` can run.
 - Tesseract/screenshot OCR was removed because the Amazon bookmarklet capture workflow is more reliable and simpler for GitHub users.
-- Data is stored locally in the browser with IndexedDB.
+- Signed-out data is stored locally in the browser with IndexedDB.
+- Signed-in data is stored in Supabase using `public.dashboard_records`, a JSONB record table keyed by `user_id`, `store`, and `id`.
+- Supabase RLS is enabled on `public.dashboard_records`; authenticated users can select/insert/update/delete only their own rows.
+- The app uses the Supabase publishable key in `app.js`, which is acceptable client-side because RLS enforces user data isolation.
+- Users can sign in/create an account from the dashboard header. When signed in, all existing app storage helpers read/write Supabase instead of IndexedDB.
+- `Copy local data to cloud` reads local IndexedDB records and upserts them into the signed-in Supabase account.
 - Run from this folder with `node server.js`, then open `http://127.0.0.1:4173/`.
 - On Windows, most users should start it by double-clicking `start-dashboard.cmd`, then opening `http://127.0.0.1:4173/`.
 - `start-dashboard.cmd` should work for other Windows users after they download/unzip the repo, as long as Node.js is installed and available on PATH.
@@ -18,7 +23,7 @@
 - The project has been pushed to GitHub at `https://github.com/Noah-your-go-to-guy/AIP-investment-dashboard-tracker`.
 - Latest pushed commit as of May 7, 2026: `66ad7ef Improve CSV revenue imports and match review`.
 - Vercel and Supabase connectors are available in Codex as of June 4, 2026. Supabase has one active healthy project `gvifstpfolidkvxjeftx`; Vercel has team `Noah's projects` with ID `team_H5iCAXyorr8oK9VS9fJtQqac`.
-- First hosted Vercel version should deploy the existing static app only. It will still use browser-local IndexedDB until a later Supabase migration adds auth and cloud data.
+- Hosted Vercel version now has Supabase auth/cloud storage wiring, while preserving local browser storage for signed-out use.
 
 ## Core Product Decisions
 - One investment record equals one bought product.
@@ -88,7 +93,7 @@
 ## Important Files
 - `index.html`: app structure, tabs, dialogs, product helper UI.
 - `styles.css`: finance-style dashboard layout and responsive UI.
-- `app.js`: IndexedDB data layer, rendering, product/revenue forms, CSV import, matching, exports, and autofill parsing.
+- `app.js`: IndexedDB/Supabase data layer, rendering, product/revenue forms, CSV import, matching, exports, auth, and autofill parsing.
 - `server.js`: tiny local static server.
 - `start-dashboard.cmd`: Windows launcher.
 - `start-dashboard.command`: Mac launcher.
