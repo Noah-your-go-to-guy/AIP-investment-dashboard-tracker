@@ -62,6 +62,7 @@
 - Sample data button for quickly seeing dashboard behavior.
 - Purchased-products filter, per-product payback bars, storefront links, manual video status, and repeatable video records are part of the product ledger.
 - Video records include video title/name, video link, posted date, and notes.
+- `Top Products` tab shows imported earning products ranked by total commission regardless of whether they are investment products. It aggregates by normalized title first to roll together variation ASINs, then falls back to ASIN, and includes filters for matched investment products vs non-investment products.
 
 ## Hybrid Product Autofill
 - The user cannot use Amazon Product Advertising API / Creators API credentials.

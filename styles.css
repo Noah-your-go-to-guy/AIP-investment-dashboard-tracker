@@ -318,6 +318,11 @@ h3 {
   gap: 12px;
 }
 
+.compact-metric-grid {
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  margin-bottom: 12px;
+}
+
 .metric {
   min-height: 122px;
   position: relative;
@@ -768,6 +773,10 @@ table {
   min-width: 1180px;
 }
 
+.top-products-table {
+  min-width: 1080px;
+}
+
 th,
 td {
   text-align: left;
@@ -846,6 +855,11 @@ tbody tr:hover {
 .numeric {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.rank-number {
+  color: var(--muted);
+  font-weight: 950;
 }
 
 .status-pill,

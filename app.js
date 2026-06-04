@@ -34,6 +34,9 @@ let state = {
   profitFilter: "all",
   sortKey: "net",
   sortDirection: "desc",
+  topProductSearch: "",
+  topProductSourceFilter: "all",
+  topProductSort: "earned",
   matchSearch: "",
   revenueAuditSearch: "",
   showIgnoredAuditRows: false,
@@ -251,6 +254,18 @@ function bindEvents() {
     state.profitFilter = event.target.value;
     renderProducts();
   });
+  $("#topProductSearch").addEventListener("input", (event) => {
+    state.topProductSearch = event.target.value.trim().toLowerCase();
+    renderTopProducts();
+  });
+  $("#topProductSourceFilter").addEventListener("change", (event) => {
+    state.topProductSourceFilter = event.target.value;
+    renderTopProducts();
+  });
+  $("#topProductSort").addEventListener("change", (event) => {
+    state.topProductSort = event.target.value;
+    renderTopProducts();
+  });
   $("#matchSearch").addEventListener("input", (event) => {
     state.matchSearch = event.target.value.trim().toLowerCase();
     renderMatchQueue();
@@ -316,6 +331,7 @@ function render() {
   renderMetrics();
   renderTrendChart();
   renderRankings();
+  renderTopProducts();
   renderProducts();
   renderImportHistory();
   renderRevenueProductOptions();
@@ -577,6 +593,152 @@ function rankCard({ product, stats }) {
     <span class="muted">${escapeHtml(product.brand || "No brand")} · ${escapeHtml(product.asin || "No ASIN")}</span>
     <span class="rank-stat">${money(stats.net)} net · ${stats.roi.toFixed(1)}% ROI</span>
   </article>`;
+}
+
+function renderTopProducts() {
+  const groups = topProductGroups();
+  const totalEarned = groups.reduce((sum, group) => sum + group.earned, 0);
+  const investmentEarned = groups.filter((group) => group.matchedProducts.length).reduce((sum, group) => sum + group.earned, 0);
+  const best = [...groups].sort((a, b) => b.earned - a.earned)[0];
+  const metrics = [
+    { label: "Imported earnings", value: money(totalEarned), note: `${groups.length} earning products`, tone: "earned" },
+    { label: "Best product", value: money(best?.earned || 0), note: best?.title || "No imported earnings yet", tone: "positive" },
+    { label: "Investment matched", value: money(investmentEarned), note: "Already tied to tracked products", tone: "neutral" },
+    { label: "Not investment products", value: money(totalEarned - investmentEarned), note: "Useful for product opportunity review", tone: "warning" },
+  ];
+  $("#topProductsMetricGrid").innerHTML = metrics
+    .map(
+      ({ label, value, note, tone }) => `<article class="metric metric-${tone}">
+        <span>${label}</span>
+        <strong>${value}</strong>
+        <small>${escapeHtml(note)}</small>
+      </article>`
+    )
+    .join("");
+
+  const query = normalizeText(state.topProductSearch);
+  const rows = groups
+    .filter((group) => {
+      if (state.topProductSourceFilter === "investment" && !group.matchedProducts.length) return false;
+      if (state.topProductSourceFilter === "notInvestment" && group.matchedProducts.length) return false;
+      if (!query) return true;
+      return topProductSearchText(group).includes(query);
+    })
+    .sort(sortTopProductRows);
+
+  $("#topProductsTable").innerHTML = rows.length
+    ? rows.map((group, index) => topProductRow(group, index + 1)).join("")
+    : `<tr><td colspan="8">${emptyState(
+        groups.length ? "No top products match the current filters." : "No imported product earnings yet.",
+        groups.length ? "Try clearing search or changing the filter." : "Upload earnings CSVs to populate this section."
+      )}</td></tr>`;
+}
+
+function topProductGroups() {
+  const groups = new Map();
+  for (const entry of state.revenueEntries.filter((item) => item.source === "csv" && numberValue(item.amount) > 0)) {
+    const key = topProductGroupKey(entry);
+    if (!key) continue;
+    const group = groups.get(key) || {
+      key,
+      title: entry.title || entry.asin || "Imported product",
+      brand: entry.brand || "",
+      category: entry.category || "",
+      asins: new Set(),
+      earned: 0,
+      clicks: 0,
+      orders: 0,
+      rows: 0,
+      firstDate: "",
+      latestDate: "",
+      matchedProductIds: new Set(),
+      sourceLinks: new Set(),
+      matchStatuses: new Set(),
+    };
+    if ((entry.title || "").length > (group.title || "").length) group.title = entry.title;
+    if (!group.brand && entry.brand) group.brand = entry.brand;
+    if (!group.category && entry.category) group.category = entry.category;
+    if (entry.asin) group.asins.add(entry.asin);
+    if (entry.sourceLink) group.sourceLinks.add(entry.sourceLink);
+    if (entry.productId) group.matchedProductIds.add(entry.productId);
+    if (entry.matchStatus) group.matchStatuses.add(entry.matchStatus);
+    group.earned += numberValue(entry.amount);
+    group.clicks += numberValue(entry.clicks);
+    group.orders += numberValue(entry.orders);
+    group.rows += 1;
+    if (entry.date) {
+      group.firstDate = !group.firstDate || entry.date < group.firstDate ? entry.date : group.firstDate;
+      group.latestDate = !group.latestDate || entry.date > group.latestDate ? entry.date : group.latestDate;
+    }
+    groups.set(key, group);
+  }
+  return [...groups.values()].map((group) => ({
+    ...group,
+    asins: [...group.asins],
+    sourceLinks: [...group.sourceLinks],
+    matchStatuses: [...group.matchStatuses],
+    matchedProducts: [...group.matchedProductIds]
+      .map((id) => state.products.find((product) => product.id === id))
+      .filter(Boolean),
+  }));
+}
+
+function topProductGroupKey(entry) {
+  const titleKey = normalizeText(entry.title);
+  if (titleKey.length > 8) return `title:${titleKey}`;
+  const asin = normalizeAsin(entry.asin);
+  if (asin) return `asin:${asin}`;
+  return "";
+}
+
+function sortTopProductRows(a, b) {
+  const sort = state.topProductSort;
+  if (sort === "orders") return b.orders - a.orders || b.earned - a.earned;
+  if (sort === "clicks") return b.clicks - a.clicks || b.earned - a.earned;
+  if (sort === "latest") return String(b.latestDate || "").localeCompare(String(a.latestDate || "")) || b.earned - a.earned;
+  if (sort === "title") return String(a.title || "").localeCompare(String(b.title || ""));
+  return b.earned - a.earned || b.orders - a.orders;
+}
+
+function topProductRow(group, rank) {
+  const primaryAsin = group.asins[0] || "";
+  const amazonLink = group.sourceLinks[0] || (primaryAsin ? `https://www.amazon.com/dp/${encodeURIComponent(primaryAsin)}` : "");
+  const asinsLabel = group.asins.length > 1 ? `${primaryAsin} +${group.asins.length - 1} more` : primaryAsin || "No ASIN";
+  const matchedLabel = group.matchedProducts.length
+    ? group.matchedProducts.map((product) => product.title || product.asin || "Tracked product").join("; ")
+    : "Not tracked as investment";
+  const activity = group.firstDate && group.latestDate && group.firstDate !== group.latestDate
+    ? `${group.firstDate} to ${group.latestDate}`
+    : group.latestDate || group.firstDate || "No date";
+  return `<tr>
+    <td class="numeric rank-number">#${rank}</td>
+    <td>
+      <div class="product-title">${escapeHtml(group.title || "Imported product")}</div>
+      <div class="product-sub">${escapeHtml(group.brand || "No brand")} · ${escapeHtml(asinsLabel)}${group.category ? ` · ${escapeHtml(group.category)}` : ""}</div>
+      ${amazonLink ? `<div class="product-sub"><a href="${escapeHtml(amazonLink)}" target="_blank" rel="noreferrer">Open listing</a></div>` : ""}
+    </td>
+    <td class="numeric rank-stat">${money(group.earned)}</td>
+    <td class="numeric">${group.orders || 0}</td>
+    <td class="numeric">${group.clicks || 0}</td>
+    <td class="numeric">${group.rows}</td>
+    <td>${escapeHtml(activity)}</td>
+    <td>
+      <span class="${group.matchedProducts.length ? "status-pill" : "match-pill"}">${escapeHtml(group.matchedProducts.length ? "Investment" : "Not investment")}</span>
+      <div class="product-sub">${escapeHtml(matchedLabel)}</div>
+    </td>
+  </tr>`;
+}
+
+function topProductSearchText(group) {
+  return normalizeText(
+    [
+      group.title,
+      group.brand,
+      group.category,
+      group.asins.join(" "),
+      group.matchedProducts.map((product) => [product.title, product.asin, product.brand].join(" ")).join(" "),
+    ].join(" ")
+  );
 }
 
 function renderProducts() {

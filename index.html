@@ -51,6 +51,7 @@
       <nav class="tabs" aria-label="Dashboard sections">
         <button class="tab active" data-tab="dashboard" type="button">Dashboard</button>
         <button class="tab" data-tab="products" type="button">Products</button>
+        <button class="tab" data-tab="top-products" type="button">Top Products</button>
         <button class="tab" data-tab="import" type="button">CSV Import</button>
         <button class="tab" data-tab="matches" type="button">Match Review</button>
         <button class="tab" data-tab="exports" type="button">Exports</button>
@@ -95,6 +96,54 @@
             <div id="laggards" class="ranking-list"></div>
           </section>
         </div>
+      </section>
+
+      <section id="top-products" class="tab-panel">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Performance</p>
+            <h2>Top performing products</h2>
+          </div>
+          <p>Rank every imported earning product by commission, whether or not you bought it as an investment.</p>
+        </div>
+        <div class="metric-grid compact-metric-grid" id="topProductsMetricGrid"></div>
+        <div class="toolbar">
+          <div class="search-wrap">
+            <span aria-hidden="true">Search</span>
+            <input id="topProductSearch" type="search" placeholder="Search title, ASIN, brand, or matched product" />
+          </div>
+          <select id="topProductSourceFilter" aria-label="Filter top products">
+            <option value="all">All imported products</option>
+            <option value="investment">Matched to investments</option>
+            <option value="notInvestment">Not investment products</option>
+          </select>
+          <select id="topProductSort" aria-label="Sort top products">
+            <option value="earned">Sort by earnings</option>
+            <option value="orders">Sort by orders</option>
+            <option value="clicks">Sort by clicks</option>
+            <option value="latest">Sort by latest activity</option>
+            <option value="title">Sort by title</option>
+          </select>
+        </div>
+        <section class="panel table-panel">
+          <div class="table-scroll">
+            <table class="top-products-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Product</th>
+                  <th>Total earned</th>
+                  <th>Orders</th>
+                  <th>Clicks</th>
+                  <th>Rows</th>
+                  <th>Activity</th>
+                  <th>Investment match</th>
+                </tr>
+              </thead>
+              <tbody id="topProductsTable"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
 
       <section id="products" class="tab-panel">
