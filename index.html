@@ -24,9 +24,13 @@
       <div class="header-actions">
         <span class="action-label">Workspace</span>
         <div id="cloudAccount" class="cloud-account">
-          <div class="cloud-copy">
+          <div id="cloudSignedOutCopy" class="cloud-copy">
             <strong><span id="cloudStatusPill" class="cloud-status-pill local">Local</span><span id="cloudStatusTitle">Local browser</span></strong>
             <span id="cloudStatusNote">Sign in to save dashboard data in Supabase.</span>
+          </div>
+          <div id="cloudWelcome" class="cloud-welcome hidden">
+            <span>Welcome,</span>
+            <strong id="cloudWelcomeEmail"></strong>
           </div>
           <div id="cloudAuthFields" class="cloud-auth-fields">
             <input id="authEmail" type="email" autocomplete="email" placeholder="Email" />
@@ -36,7 +40,6 @@
             <button id="resendConfirmationBtn" class="ghost-btn" type="button">Resend confirmation</button>
           </div>
           <div id="cloudSignedInActions" class="cloud-signed-in-actions hidden">
-            <button id="copyLocalToCloudBtn" class="secondary-btn" type="button">Copy local data to cloud</button>
             <button id="signOutBtn" class="ghost-btn" type="button">Sign out</button>
           </div>
         </div>
@@ -72,7 +75,7 @@
             <div class="panel-heading">
               <div>
                 <h2>Monthly ROI Trend</h2>
-                <p>Commissions and net cash recovery by reporting month.</p>
+                <p>Commission, resale recovery, and investment cost by reporting month.</p>
               </div>
             </div>
             <div id="trendChart" class="trend-chart" aria-label="Monthly revenue chart"></div>
@@ -178,7 +181,7 @@
                   <th><button class="sort-btn" data-sort="title" type="button">Product</button></th>
                   <th><button class="sort-btn" data-sort="status" type="button">Status</button></th>
                   <th><button class="sort-btn" data-sort="cost" type="button">Cost</button></th>
-                  <th><button class="sort-btn" data-sort="earned" type="button">Earned</button></th>
+                  <th><button class="sort-btn" data-sort="earned" type="button">Recovered</button></th>
                   <th><button class="sort-btn" data-sort="net" type="button">Net</button></th>
                   <th><button class="sort-btn" data-sort="roi" type="button">ROI</button></th>
                   <th>Payback</th>
@@ -320,37 +323,148 @@
           <div class="panel-heading">
             <div>
               <h2>Send to AIP Dashboard</h2>
-              <p>This is a one-time setup step. You do not need a new bookmarklet for every product.</p>
+              <p>Set this up once in your browser, then use the same bookmark for every investment product you buy.</p>
             </div>
           </div>
-          <div class="setup-steps">
-            <article>
-              <strong>1. Copy the bookmarklet</strong>
-              <span>Click the button below to copy the helper code.</span>
-            </article>
-            <article>
-              <strong>2. Save it as a bookmark</strong>
-              <span>Create a browser bookmark named Send to AIP Dashboard and paste the copied text into the bookmark URL.</span>
-            </article>
-            <article>
-              <strong>3. Use it on Amazon</strong>
-              <span>Open an Amazon product page, click the bookmark, then paste or upload the captured JSON when adding a product.</span>
-            </article>
+
+          <div class="setup-important-note">
+            <strong>Add products before uploading earnings CSVs.</strong>
+            <span>This gives imported commissions a product to match against and makes accurate ROI tracking much easier.</span>
           </div>
-          <div class="bookmarklet-card setup-bookmarklet-card">
+
+          <div id="cloudTransferCard" class="setup-cloud-transfer hidden">
             <div>
-              <h4>Bookmarklet</h4>
-              <p>Copy this once and save it in your browser bookmarks bar.</p>
+              <strong>Already tracked products in this browser?</strong>
+              <span>After signing in, use this once to copy your existing local products and earnings into your cloud account.</span>
             </div>
-            <div class="bookmarklet-actions">
-              <button id="copyBookmarkletBtn" class="secondary-btn" type="button">Copy bookmarklet</button>
-              <a id="bookmarkletLink" class="secondary-btn bookmarklet-link" href="#">Drag to bookmarks bar</a>
-            </div>
-            <details>
-              <summary>Show bookmarklet code</summary>
-              <textarea id="bookmarkletCode" readonly rows="3"></textarea>
-            </details>
+            <button id="copyLocalToCloudBtn" class="secondary-btn" type="button">Copy local data to cloud</button>
           </div>
+
+          <section class="setup-guide-section">
+            <div class="setup-guide-heading">
+              <span class="setup-phase">Part 1</span>
+              <div>
+                <h3>One-time setup in Chrome</h3>
+                <p>You only need to complete these steps once. Microsoft Edge uses nearly the same steps.</p>
+              </div>
+            </div>
+            <div class="setup-install-layout">
+              <ol class="setup-instructions">
+                <li>
+                  <span class="setup-step-number">1</span>
+                  <div>
+                    <strong>Copy the helper code</strong>
+                    <span>Click <b>Copy bookmarklet</b> in the box beside these instructions.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="setup-step-number">2</span>
+                  <div>
+                    <strong>Show Chrome's bookmarks bar</strong>
+                    <span>Press <kbd>Ctrl + Shift + B</kbd>. On a Mac, press <kbd>Command + Shift + B</kbd>.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="setup-step-number">3</span>
+                  <div>
+                    <strong>Create a new bookmark</strong>
+                    <span>Right-click an empty area of the bookmarks bar and choose <b>Add page</b>.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="setup-step-number">4</span>
+                  <div>
+                    <strong>Name the bookmark</strong>
+                    <span>Enter <b>Send to AIP Dashboard</b> in the Name field.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="setup-step-number">5</span>
+                  <div>
+                    <strong>Paste the code into URL</strong>
+                    <span>Delete anything already in the URL field, paste the copied bookmarklet, and confirm it begins with <code>javascript:</code>.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="setup-step-number">6</span>
+                  <div>
+                    <strong>Save it</strong>
+                    <span>Click <b>Save</b>. Keep this bookmark on your bookmarks bar so it is easy to use on Amazon.</span>
+                  </div>
+                </li>
+              </ol>
+
+              <div class="bookmarklet-card setup-bookmarklet-card">
+                <div>
+                  <h4>Bookmarklet helper code</h4>
+                  <p>Use the copy button for the easiest setup. Dragging the link to the bookmarks bar is an alternative.</p>
+                </div>
+                <div class="bookmarklet-actions">
+                  <button id="copyBookmarkletBtn" class="primary-btn" type="button">Copy bookmarklet</button>
+                  <a id="bookmarkletLink" class="secondary-btn bookmarklet-link" href="#">Drag to bookmarks bar</a>
+                </div>
+                <details>
+                  <summary>Show bookmarklet code</summary>
+                  <textarea id="bookmarkletCode" readonly rows="3"></textarea>
+                </details>
+              </div>
+            </div>
+          </section>
+
+          <section class="setup-guide-section">
+            <div class="setup-guide-heading">
+              <span class="setup-phase">Part 2</span>
+              <div>
+                <h3>For every investment product</h3>
+                <p>Repeat this short workflow whenever you buy a product for making videos.</p>
+              </div>
+            </div>
+            <div class="setup-steps setup-use-steps">
+              <article>
+                <span class="setup-step-number">1</span>
+                <strong>Open the exact Amazon product page</strong>
+                <span>Make sure the correct size, color, count, or variation is selected before capturing it.</span>
+              </article>
+              <article>
+                <span class="setup-step-number">2</span>
+                <strong>Click Send to AIP Dashboard</strong>
+                <span>Click the saved bookmark while you are still on the Amazon product page.</span>
+              </article>
+              <article>
+                <span class="setup-step-number">3</span>
+                <strong>Confirm the capture</strong>
+                <span>Amazon should display: <b>Copied product capture JSON</b>. If a JSON file downloads instead, keep that file.</span>
+              </article>
+              <article>
+                <span class="setup-step-number">4</span>
+                <strong>Open the product form</strong>
+                <span>Return here, open <b>Products</b>, and click <b>Add product</b>.</span>
+              </article>
+              <article>
+                <span class="setup-step-number">5</span>
+                <strong>Import the capture</strong>
+                <span>Paste into the capture box and click <b>Import pasted capture</b>. For a downloaded file, click <b>Upload capture JSON</b>.</span>
+              </article>
+              <article>
+                <span class="setup-step-number">6</span>
+                <strong>Review and save</strong>
+                <span>Click <b>Apply autofill</b>, verify the title and price, enter your final costs, then click <b>Save product</b>.</span>
+              </article>
+            </div>
+          </section>
+
+          <details class="setup-troubleshooting">
+            <summary>Bookmark not copying the product?</summary>
+            <div>
+              <p><strong>If clicking the bookmark appears to do nothing:</strong></p>
+              <ul>
+                <li>Edit the bookmark and make sure its URL begins with <code>javascript:</code>, not <code>https://</code>.</li>
+                <li>Make sure you clicked it from an individual Amazon product page, not search results or your cart.</li>
+                <li>If Chrome downloads a JSON file instead of copying it, use <b>Upload capture JSON</b> in the Add Product form.</li>
+                <li>You do not need to create a new bookmark for each product. Reuse the same one every time.</li>
+              </ul>
+            </div>
+          </details>
         </section>
       </section>
     </main>
@@ -405,7 +519,28 @@
           <label>Amazon link <input id="amazonLink" type="url" /></label>
           <label>Storefront/product link <input id="storefrontLink" type="url" /></label>
           <label>Video status <select id="videoStatus"></select></label>
-          <label>Purchase price <input id="purchasePrice" type="number" min="0" step="0.01" /></label>
+          <div class="form-field">
+            <span>Purchase price</span>
+            <input id="purchasePrice" type="number" min="0" step="0.01" />
+            <button
+              id="toggleResaleBtn"
+              class="resale-action-btn"
+              type="button"
+              aria-controls="resaleFields"
+              aria-expanded="false"
+            >
+              <span class="resale-action-icon" aria-hidden="true">$</span>
+              <span class="resale-action-copy">
+                <strong data-resale-action-label>Mark product as resold</strong>
+                <small>Add the cash you kept after fees and shipping</small>
+              </span>
+            </button>
+            <section id="resaleFields" class="resale-fields hidden">
+              <label>Resold for (cash kept) <input id="resaleAmount" type="number" min="0" step="0.01" /></label>
+              <label>Resold date <input id="resaleDate" type="date" /></label>
+              <button id="clearResaleBtn" class="secondary-btn" type="button">Clear resale</button>
+            </section>
+          </div>
           <label>Tax <input id="tax" type="number" min="0" step="0.01" /></label>
           <label>Shipping <input id="shipping" type="number" min="0" step="0.01" /></label>
           <label>Discounts <input id="discounts" type="number" min="0" step="0.01" /></label>

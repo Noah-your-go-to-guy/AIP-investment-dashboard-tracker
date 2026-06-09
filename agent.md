@@ -30,10 +30,10 @@
 ## Core Product Decisions
 - One investment record equals one bought product.
 - ROI is product-level, not video-level, because Amazon does not provide revenue attribution by individual video.
-- ROI uses net profit: commissions/revenue minus full landed cost.
+- ROI uses net profit: Amazon commissions plus net resale proceeds minus full landed cost.
 - Imported ROI income should mean commission earned only, not shipped revenue/sales volume.
 - Full landed cost includes purchase price, tax, shipping, discounts, and refunds/returns.
-- The buy-to-profit lifecycle is: researched, bought, received, filmed, posted, earning, paid off, retired.
+- The buy-to-profit lifecycle is: researched, bought, received, filmed, posted, earning, paid off.
 - The first screen should be an ROI command center with totals, payback, monthly trend, top winners, and laggards.
 - Purchased-products view/filter means statuses `bought`, `received`, `filmed`, `posted`, `earning`, and `paid off`.
 - Storefront/video tracking is manual in v1. Do not attempt automatic storefront scraping until the user explicitly asks for a helper/import workflow.
@@ -69,6 +69,8 @@
 - Exports for products, revenue, ROI summary, and full JSON backup.
 - Sample data button for quickly seeing dashboard behavior.
 - Purchased-products filter, per-product payback bars, storefront links, manual video status, and repeatable video records are part of the product ledger.
+- Each investment product can record one resale amount and resale date. Resale amount means net cash kept after selling fees and shipping; it does not change product status.
+- Product financials keep Amazon commission and resale proceeds separate, while total recovered, net profit, ROI, payback, unrecovered cost, and paid-off status use both.
 - Video records include video title/name, video link, posted date, and notes.
 - `Top Products` tab shows imported earning products ranked by total commission regardless of whether they are investment products. It aggregates by normalized title first to roll together variation ASINs, then falls back to ASIN, and includes filters for matched investment products vs non-investment products.
 

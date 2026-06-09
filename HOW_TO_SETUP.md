@@ -190,9 +190,9 @@ In `Match Review`, approve only the matches you trust. Approved matches will cou
 
 In the Products table, each product has a payback bar.
 
-The payback bar shows how much of your product cost has been earned back through commissions.
+The payback bar shows how much of your product cost has been recovered through Amazon commission and any net resale proceeds you record.
 
-The dashboard uses commission earned only for ROI.
+Use `Mark as resold` in the product form if you sell the physical product. Enter the cash you kept after selling fees and shipping. Amazon commission remains visible separately from resale proceeds.
 
 ## 11. Avoid Duplicate CSV Income
 

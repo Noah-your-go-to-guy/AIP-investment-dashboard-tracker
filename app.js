@@ -3,7 +3,7 @@ const DB_VERSION = 1;
 const SUPABASE_URL = "https://gvifstpfolidkvxjeftx.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_fnM9Bw4WbLAqibtuCv2pJA_hMwErdoC";
 const STORES = ["products", "revenueEntries", "approvedMatches", "importBatches"];
-const STATUSES = ["researched", "bought", "received", "filmed", "posted", "earning", "paid off", "retired"];
+const STATUSES = ["researched", "bought", "received", "filmed", "posted", "earning", "paid off"];
 const PURCHASED_STATUSES = ["bought", "received", "filmed", "posted", "earning", "paid off"];
 const VIDEO_STATUSES = ["not filmed", "filmed", "posted", "needs check"];
 const OPTIONAL_MAPPING = "Do not import";
@@ -347,6 +347,18 @@ function bindEvents() {
   $("#productForm").addEventListener("submit", handleProductSubmit);
   $("#revenueForm").addEventListener("submit", handleRevenueSubmit);
   $("#deleteProductBtn").addEventListener("click", deleteCurrentProduct);
+  $("#toggleResaleBtn").addEventListener("click", () => {
+    const fields = $("#resaleFields");
+    const show = fields.classList.contains("hidden");
+    setResaleFieldsVisible(show);
+    if (show && !$("#resaleDate").value) $("#resaleDate").value = todayInputValue();
+    if (show) $("#resaleAmount").focus();
+  });
+  $("#clearResaleBtn").addEventListener("click", () => {
+    $("#resaleAmount").value = "";
+    $("#resaleDate").value = "";
+    setResaleFieldsVisible(false);
+  });
   $("#addVideoBtn").addEventListener("click", () => addVideoRow());
   $("#videoRows").addEventListener("click", (event) => {
     const button = event.target.closest("[data-remove-video]");
@@ -424,11 +436,18 @@ function bindEvents() {
 }
 
 function populateStatusControls() {
-  const statusOptions = STATUSES.map((status) => `<option value="${escapeHtml(status)}">${titleCase(status)}</option>`).join("");
+  const statusOptions = productStatusOptions();
   const videoStatusOptions = VIDEO_STATUSES.map((status) => `<option value="${escapeHtml(status)}">${titleCase(status)}</option>`).join("");
   $("#status").innerHTML = statusOptions;
   $("#videoStatus").innerHTML = videoStatusOptions;
   $("#statusFilter").innerHTML = `<option value="all">All statuses</option>${statusOptions}`;
+}
+
+function productStatusOptions(selectedStatus = "") {
+  return STATUSES.map(
+    (status) =>
+      `<option value="${escapeHtml(status)}"${status === selectedStatus ? " selected" : ""}>${titleCase(status)}</option>`
+  ).join("");
 }
 
 function switchTab(tabName) {
@@ -452,6 +471,10 @@ function render() {
 
 function renderCloudAccount() {
   const signedIn = cloudStorageActive();
+  $("#cloudAccount").classList.toggle("is-signed-in", signedIn);
+  $("#cloudSignedOutCopy").classList.toggle("hidden", signedIn);
+  $("#cloudWelcome").classList.toggle("hidden", !signedIn);
+  $("#cloudWelcomeEmail").textContent = cloudWelcomeLabel(state.cloudUser);
   $("#cloudStatusTitle").textContent = signedIn ? "Cloud account" : "Local browser";
   $("#cloudStatusPill").textContent = signedIn ? "Signed in" : "Local";
   $("#cloudStatusPill").classList.toggle("signed-in", signedIn);
@@ -463,6 +486,11 @@ function renderCloudAccount() {
       : "Cloud login unavailable. Local browser data is still active.";
   $("#cloudAuthFields").classList.toggle("hidden", signedIn || !state.cloudAvailable);
   $("#cloudSignedInActions").classList.toggle("hidden", !signedIn);
+  $("#cloudTransferCard").classList.toggle("hidden", !signedIn);
+}
+
+function cloudWelcomeLabel(user) {
+  return user?.email || "your cloud account";
 }
 
 function getAuthCredentials() {
@@ -606,14 +634,27 @@ async function copyLocalDataToCloud() {
 
 function getProductStats(product) {
   const cost = landedCost(product);
-  const earned = state.revenueEntries
+  const commission = state.revenueEntries
     .filter((entry) => entry.productId === product.id && entry.matchStatus !== "rejected")
     .reduce((sum, entry) => sum + numberValue(entry.amount), 0);
-  const net = earned - cost;
-  const roi = cost > 0 ? (net / cost) * 100 : earned > 0 ? 100 : 0;
-  const unrecovered = Math.max(cost - earned, 0);
-  const paybackPercent = cost > 0 ? (earned / cost) * 100 : earned > 0 ? 100 : 0;
-  return { cost, earned, net, roi, unrecovered, paybackPercent, paidOff: cost > 0 && earned >= cost };
+  const resale = numberValue(product.resaleAmount);
+  const recovered = commission + resale;
+  const net = recovered - cost;
+  const roi = cost > 0 ? (net / cost) * 100 : recovered > 0 ? 100 : 0;
+  const unrecovered = Math.max(cost - recovered, 0);
+  const paybackPercent = cost > 0 ? (recovered / cost) * 100 : recovered > 0 ? 100 : 0;
+  return {
+    cost,
+    commission,
+    resale,
+    recovered,
+    earned: recovered,
+    net,
+    roi,
+    unrecovered,
+    paybackPercent,
+    paidOff: cost > 0 && recovered >= cost,
+  };
 }
 
 function landedCost(product) {
@@ -631,20 +672,27 @@ function renderMetrics() {
     (acc, product) => {
       const stats = getProductStats(product);
       acc.cost += stats.cost;
-      acc.earned += stats.earned;
+      acc.commission += stats.commission;
+      acc.resale += stats.resale;
+      acc.recovered += stats.recovered;
       acc.net += stats.net;
       acc.unrecovered += stats.unrecovered;
       if (stats.paidOff) acc.paidOff += 1;
       return acc;
     },
-    { cost: 0, earned: 0, net: 0, unrecovered: 0, paidOff: 0 }
+    { cost: 0, commission: 0, resale: 0, recovered: 0, net: 0, unrecovered: 0, paidOff: 0 }
   );
   const roi = totals.cost > 0 ? (totals.net / totals.cost) * 100 : 0;
   const paybackRate = state.products.length ? (totals.paidOff / state.products.length) * 100 : 0;
   const suggested = state.revenueEntries.filter((entry) => entry.matchStatus === "suggested").length;
   const metrics = [
     { label: "Total invested", value: money(totals.cost), note: `${state.products.length} products`, tone: "cost" },
-    { label: "Total earned", value: money(totals.earned), note: `${state.revenueEntries.length} revenue rows`, tone: "earned" },
+    {
+      label: "Total recovered",
+      value: money(totals.recovered),
+      note: `${money(totals.commission)} commission + ${money(totals.resale)} resale`,
+      tone: "earned",
+    },
     { label: "Net profit", value: money(totals.net), note: totals.net >= 0 ? "Above cost" : "Still recovering", tone: totals.net >= 0 ? "positive" : "negative" },
     { label: "ROI", value: `${roi.toFixed(1)}%`, note: "Net profit / landed cost", tone: roi >= 0 ? "positive" : "negative" },
     { label: "Unrecovered", value: money(totals.unrecovered), note: "Cost still unpaid", tone: "warning" },
@@ -663,31 +711,16 @@ function renderMetrics() {
 }
 
 function renderTrendChart() {
-  const monthly = new Map();
-  for (const product of state.products) {
-    const month = toMonth(product.purchaseDate);
-    if (!month) continue;
-    const row = monthly.get(month) || { cost: 0, earned: 0 };
-    row.cost += landedCost(product);
-    monthly.set(month, row);
-  }
-  for (const entry of state.revenueEntries.filter((item) => item.productId && item.matchStatus !== "rejected")) {
-    const month = toMonth(entry.date);
-    if (!month) continue;
-    const row = monthly.get(month) || { cost: 0, earned: 0 };
-    row.earned += numberValue(entry.amount);
-    monthly.set(month, row);
-  }
-  const rows = [...monthly.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-12);
-  const maxValue = Math.max(1, ...rows.flatMap(([, row]) => [row.cost, row.earned]));
+  const rows = monthlyRecoveryRows().slice(-12);
+  const maxValue = Math.max(1, ...rows.flatMap(([, row]) => [row.cost, row.recovered]));
   $("#trendChart").innerHTML = rows.length
     ? rows
         .map(([month, row]) => {
-          const earnedHeight = Math.max(2, (row.earned / maxValue) * 180);
+          const recoveredHeight = Math.max(2, (row.recovered / maxValue) * 180);
           const costHeight = Math.max(2, (row.cost / maxValue) * 180);
-          return `<div class="bar-group" title="${month}: earned ${money(row.earned)}, cost ${money(row.cost)}">
+          return `<div class="bar-group" title="${month}: recovered ${money(row.recovered)}, commission ${money(row.commission)}, resale ${money(row.resale)}, cost ${money(row.cost)}">
             <div class="bar-stack">
-              <div class="bar earned" style="height:${earnedHeight}px"></div>
+              <div class="bar earned" style="height:${recoveredHeight}px"></div>
               <div class="bar cost" style="height:${costHeight}px"></div>
             </div>
             <div class="bar-label">${formatMonth(month)}</div>
@@ -695,6 +728,40 @@ function renderTrendChart() {
         })
         .join("")
     : emptyState("No monthly activity yet.", "Add products or import revenue to populate the trend.");
+}
+
+function monthlyRecoveryRows() {
+  const monthly = new Map();
+  for (const product of state.products) {
+    const month = toMonth(product.purchaseDate);
+    if (month) {
+      const row = monthly.get(month) || emptyMonthlyRecovery();
+      row.cost += landedCost(product);
+      monthly.set(month, row);
+    }
+    const resaleMonth = toMonth(product.resaleDate);
+    const resale = numberValue(product.resaleAmount);
+    if (resaleMonth && resale) {
+      const row = monthly.get(resaleMonth) || emptyMonthlyRecovery();
+      row.resale += resale;
+      row.recovered += resale;
+      monthly.set(resaleMonth, row);
+    }
+  }
+  for (const entry of state.revenueEntries.filter((item) => item.productId && item.matchStatus !== "rejected")) {
+    const month = toMonth(entry.date);
+    if (!month) continue;
+    const row = monthly.get(month) || emptyMonthlyRecovery();
+    const amount = numberValue(entry.amount);
+    row.commission += amount;
+    row.recovered += amount;
+    monthly.set(month, row);
+  }
+  return [...monthly.entries()].sort(([a], [b]) => a.localeCompare(b));
+}
+
+function emptyMonthlyRecovery() {
+  return { cost: 0, commission: 0, resale: 0, recovered: 0 };
 }
 
 function renderRankings() {
@@ -888,6 +955,39 @@ function renderProducts() {
   $$("#productsTable [data-product-csv]").forEach((button) => {
     button.addEventListener("click", () => openProductCsvAudit(button.dataset.productCsv));
   });
+  $$("#productsTable [data-product-status]").forEach((select) => {
+    select.addEventListener("change", async () => {
+      const previousStatus = select.dataset.previousStatus || "researched";
+      const nextStatus = select.value;
+      select.disabled = true;
+      try {
+        await updateProductStatus(select.dataset.productStatus, nextStatus);
+        render();
+        toast(`Status changed to ${titleCase(nextStatus)}.`);
+      } catch (error) {
+        console.error("Product status update failed", error);
+        select.value = previousStatus;
+        select.disabled = false;
+        toast("Could not save the status change.");
+      }
+    });
+  });
+}
+
+async function updateProductStatus(productId, status, saveProduct = put) {
+  if (!STATUSES.includes(status)) throw new Error("Invalid product status.");
+  const productIndex = state.products.findIndex((product) => product.id === productId);
+  if (productIndex < 0) throw new Error("Product not found.");
+  const currentProduct = state.products[productIndex];
+  if (currentProduct.status === status) return currentProduct;
+  const updatedProduct = {
+    ...currentProduct,
+    status,
+    updatedAt: new Date().toISOString(),
+  };
+  await saveProduct("products", updatedProduct);
+  state.products[productIndex] = updatedProduct;
+  return updatedProduct;
 }
 
 function sortProductRows(a, b) {
@@ -920,14 +1020,31 @@ function productRow({ product, stats }) {
     <td>
       <div class="product-title">${escapeHtml(product.title || "Untitled product")}</div>
       <div class="product-sub">${escapeHtml(product.brand || "No brand")} · ${escapeHtml(product.asin || "No ASIN")} · ${escapeHtml(product.category || "Uncategorized")}</div>
+      ${
+        stats.resale > 0
+          ? `<div class="resale-indicator">Resold for ${money(stats.resale)}${product.resaleDate ? ` on ${escapeHtml(product.resaleDate)}` : ""}</div>`
+          : ""
+      }
       <div class="product-links">
         ${amazonLink ? `<a href="${escapeHtml(amazonLink)}" target="_blank" rel="noreferrer">Open Amazon</a>` : ""}
         <button class="text-link" data-product-csv="${product.id}" type="button">CSV rows (${csvRowCount})</button>
       </div>
     </td>
-    <td><span class="status-pill">${titleCase(product.status || "researched")}</span></td>
+    <td>
+      <select
+        class="inline-status-select"
+        data-product-status="${product.id}"
+        data-previous-status="${escapeHtml(STATUSES.includes(product.status) ? product.status : "researched")}"
+        aria-label="Change status for ${escapeHtml(product.title || "product")}"
+      >
+        ${productStatusOptions(STATUSES.includes(product.status) ? product.status : "researched")}
+      </select>
+    </td>
     <td class="numeric">${money(stats.cost)}</td>
-    <td class="numeric">${money(stats.earned)}</td>
+    <td class="numeric">
+      <strong>${money(stats.recovered)}</strong>
+      <small class="money-breakdown">${money(stats.commission)} commission${stats.resale ? ` + ${money(stats.resale)} resale` : ""}</small>
+    </td>
     <td class="numeric ${netClass}">${money(stats.net)}</td>
     <td class="numeric">${stats.roi.toFixed(1)}%</td>
     <td>
@@ -1106,6 +1223,14 @@ function collectVideoRows() {
     .filter((video) => video.title || video.link || video.postedDate || video.notes);
 }
 
+function setResaleFieldsVisible(visible) {
+  $("#resaleFields").classList.toggle("hidden", !visible);
+  const button = $("#toggleResaleBtn");
+  button.classList.toggle("is-active", visible);
+  button.setAttribute("aria-expanded", String(visible));
+  button.querySelector("[data-resale-action-label]").textContent = visible ? "Resale details added" : "Mark product as resold";
+}
+
 function openProductDialog(productId = "") {
   const product = state.products.find((item) => item.id === productId);
   $("#productDialogTitle").textContent = product ? "Edit product" : "Add product";
@@ -1125,14 +1250,17 @@ function openProductDialog(productId = "") {
     "shipping",
     "discounts",
     "refunds",
+    "resaleAmount",
+    "resaleDate",
     "filmedDate",
     "postedDate",
     "notes",
   ]) {
     $(`#${field}`).value = product?.[field] ?? "";
   }
-  $("#status").value = product?.status || "researched";
+  $("#status").value = STATUSES.includes(product?.status) ? product.status : "researched";
   $("#videoStatus").value = product?.videoStatus || deriveVideoStatus(product || {});
+  setResaleFieldsVisible(Boolean(numberValue(product?.resaleAmount) || product?.resaleDate));
   renderVideoRows(normalizeProductVideos(product || {}));
   $("#deleteProductBtn").classList.toggle("hidden", !product);
   $("#productDialog").showModal();
@@ -1142,6 +1270,7 @@ async function handleProductSubmit(event) {
   event.preventDefault();
   if (event.submitter?.value !== "save") return $("#productDialog").close();
   const existing = state.products.find((item) => item.id === $("#productId").value);
+  const resaleAmount = numberValue($("#resaleAmount").value);
   const product = {
     id: existing?.id || crypto.randomUUID(),
     createdAt: existing?.createdAt || new Date().toISOString(),
@@ -1161,6 +1290,8 @@ async function handleProductSubmit(event) {
     shipping: numberValue($("#shipping").value),
     discounts: numberValue($("#discounts").value),
     refunds: numberValue($("#refunds").value),
+    resaleAmount,
+    resaleDate: resaleAmount ? $("#resaleDate").value || todayInputValue() : "",
     filmedDate: $("#filmedDate").value,
     postedDate: $("#postedDate").value,
     notes: $("#notes").value.trim(),
@@ -1968,7 +2099,10 @@ function productExportRows() {
       Status: product.status,
       "Purchase Date": product.purchaseDate,
       "Landed Cost": stats.cost,
-      Earned: stats.earned,
+      "Amazon Commission": stats.commission,
+      "Resale Proceeds": stats.resale,
+      "Resale Date": product.resaleDate || "",
+      "Total Recovered": stats.recovered,
       "Net Profit": stats.net,
       "ROI %": stats.roi.toFixed(2),
       "Payback %": stats.paybackPercent.toFixed(2),
@@ -2008,7 +2142,10 @@ function summaryExportRows() {
       Brand: product.brand,
       ASIN: product.asin,
       Cost: stats.cost,
-      Earned: stats.earned,
+      "Amazon Commission": stats.commission,
+      "Resale Proceeds": stats.resale,
+      "Resale Date": product.resaleDate || "",
+      "Total Recovered": stats.recovered,
       "Net Profit": stats.net,
       "ROI %": stats.roi.toFixed(2),
       "Payback %": stats.paybackPercent.toFixed(2),
@@ -2760,6 +2897,13 @@ function emptyState(message, detail = "") {
 
 function dateStamp() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function todayInputValue() {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${today.getFullYear()}-${month}-${day}`;
 }
 
 function toast(message) {

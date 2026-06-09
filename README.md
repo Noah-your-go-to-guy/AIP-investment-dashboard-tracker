@@ -1,6 +1,6 @@
 # AIP Investment Dashboard
 
-An Amazon Influencer Program dashboard for tracking product investments, product-level commissions, ROI, CSV imports, approved listing matches, video links, payback progress, and exports.
+An Amazon Influencer Program dashboard for tracking product investments, product-level commissions, resale recovery, ROI, CSV imports, approved listing matches, video links, payback progress, and exports.
 
 The app can run locally or on Vercel. Signed-out users store data in their own browser. Signed-in users can store dashboard records in Supabase.
 
@@ -82,8 +82,9 @@ You only set this up once. Then you reuse the same bookmark on any Amazon produc
 3. Add video links as you make videos.
 4. Upload weekly Amazon earnings CSVs.
 5. Review suggested matches.
-6. Check payback and ROI.
-7. Export backups regularly.
+6. Record net resale proceeds if you sell an investment product.
+7. Check total recovery, payback, and ROI.
+8. Export backups regularly.
 
 Important: add the product before uploading earnings CSVs. If the product is not in the dashboard first, imported earnings may stay unmatched or require review instead of counting toward that product.
 
@@ -100,6 +101,8 @@ report date + ASIN + title + commission amount
 ```
 
 Exact ASIN matches count automatically. Approved matches persist for future imports. Fuzzy title-based matches stay in Match Review until approved.
+
+Amazon commission and resale proceeds remain separate. Total recovery, payback, net profit, and ROI use commission plus the net cash kept from a resale.
 
 ## Data And Backups
 
