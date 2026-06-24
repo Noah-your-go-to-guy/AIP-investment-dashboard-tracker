@@ -1800,9 +1800,9 @@ function renderImportHistory() {
   }
   target.innerHTML = batches
     .map((batch) => {
-      const importedRows = state.revenueEntries.filter((entry) => entry.importBatchId === batch.id).length;
+      const batchRows = state.revenueEntries.filter((entry) => entry.importBatchId === batch.id);
+      const liveSummary = summarizeImportBatchRows(batchRows);
       const duplicateCount = numberValue(batch.summary?.duplicate);
-      const ignoredCount = numberValue(batch.summary?.ignored);
       return `<article class="import-history-card">
         <div>
           <strong>${escapeHtml(batch.fileName || "Imported CSV")}</strong>
@@ -1812,8 +1812,10 @@ function renderImportHistory() {
           <div><dt>Report date</dt><dd>${escapeHtml(batch.reportDate || "Mapped/default")}</dd></div>
           <div><dt>Money column</dt><dd>${escapeHtml(batch.mapping?.amount || "Not mapped")}</dd></div>
           <div><dt>Rows found</dt><dd>${numberValue(batch.rowCount)}</dd></div>
-          <div><dt>Rows imported</dt><dd>${importedRows}</dd></div>
-          <div><dt>Ignored low-confidence/noise</dt><dd>${ignoredCount}</dd></div>
+          <div><dt>Rows imported</dt><dd>${liveSummary.imported}</dd></div>
+          <div><dt>Counted toward products</dt><dd>${liveSummary.counted}</dd></div>
+          <div><dt>Needs review</dt><dd>${liveSummary.needsReview}</dd></div>
+          <div><dt>Ignored/not counted</dt><dd>${liveSummary.ignored}</dd></div>
           <div><dt>Duplicates skipped</dt><dd>${duplicateCount}</dd></div>
         </dl>
         <div class="import-history-actions">
@@ -1825,6 +1827,23 @@ function renderImportHistory() {
   target.querySelectorAll("[data-remove-import-batch]").forEach((button) => {
     button.addEventListener("click", () => removeImportBatch(button.dataset.removeImportBatch, button));
   });
+}
+
+function summarizeImportBatchRows(rows = []) {
+  return rows.reduce(
+    (summary, entry) => {
+      summary.imported += 1;
+      if (entry.productId && entry.matchStatus !== "rejected") {
+        summary.counted += 1;
+      } else if (["suggested", "unmatched"].includes(entry.matchStatus)) {
+        summary.needsReview += 1;
+      } else {
+        summary.ignored += 1;
+      }
+      return summary;
+    },
+    { imported: 0, counted: 0, needsReview: 0, ignored: 0 }
+  );
 }
 
 function revenueRowsForImportBatch(batchId, entries = state.revenueEntries) {
