@@ -376,6 +376,8 @@ function bindEvents() {
     state.profitFilter = event.target.value;
     renderProducts();
   });
+  $("#breakEvenCalculatorInputs").addEventListener("input", renderBreakEvenCalculator);
+  $("#resetCalculatorBtn").addEventListener("click", resetBreakEvenCalculator);
   $("#topProductSearch").addEventListener("input", (event) => {
     state.topProductSearch = event.target.value.trim().toLowerCase();
     renderTopProducts();
@@ -458,6 +460,7 @@ function switchTab(tabName) {
 
 function render() {
   renderCloudAccount();
+  renderBreakEvenCalculator();
   renderMetrics();
   renderTrendChart();
   renderRankings();
@@ -467,6 +470,104 @@ function render() {
   renderRevenueProductOptions();
   renderMatchQueue();
   renderRevenueAudit();
+}
+
+function calculateBreakEven(input = {}) {
+  const monthlySales = Math.max(numberValue(input.monthlySales), 0);
+  const attributedVelocity = Math.max(numberValue(input.attributedVelocityPercent), 0) / 100;
+  const carouselVideos = Math.max(numberValue(input.carouselVideos), 0);
+  const amazonPrice = Math.max(numberValue(input.amazonPrice), 0);
+  const commissionRate = Math.max(numberValue(input.commissionPercent), 0) / 100;
+  const ccBonusRate = Math.max(numberValue(input.ccBonusPercent), 0) / 100;
+  const investmentPrice = Math.max(numberValue(input.investmentPrice), 0);
+  const resaleValue = Math.max(numberValue(input.resaleValue), 0);
+  const attributedSales = carouselVideos > 0 ? (monthlySales * attributedVelocity) / carouselVideos : 0;
+  const monthlyEarnings = attributedSales * amazonPrice * (commissionRate + ccBonusRate);
+  const netInvestment = Math.max(investmentPrice - resaleValue, 0);
+  const resaleSurplus = Math.max(resaleValue - investmentPrice, 0);
+  const breakEvenDays = netInvestment === 0 ? 0 : monthlyEarnings > 0 ? (netInvestment / monthlyEarnings) * 30 : null;
+
+  return {
+    monthlySales,
+    attributedVelocity,
+    carouselVideos,
+    amazonPrice,
+    commissionRate,
+    ccBonusRate,
+    investmentPrice,
+    resaleValue,
+    attributedSales,
+    monthlyEarnings,
+    netInvestment,
+    resaleSurplus,
+    breakEvenDays,
+  };
+}
+
+function breakEvenCalculatorInput() {
+  return {
+    monthlySales: $("#calcMonthlySales").value,
+    attributedVelocityPercent: $("#calcAttributedVelocity").value,
+    carouselVideos: $("#calcCarouselVideos").value,
+    amazonPrice: $("#calcAmazonPrice").value,
+    commissionPercent: $("#calcCommissionRate").value,
+    ccBonusPercent: $("#calcCcBonusRate").value,
+    investmentPrice: $("#calcInvestmentPrice").value,
+    resaleValue: $("#calcResaleValue").value,
+  };
+}
+
+function renderBreakEvenCalculator() {
+  if (!$("#breakEvenCalculatorInputs")) return;
+  const input = breakEvenCalculatorInput();
+  const result = calculateBreakEven(input);
+  const breakEvenLabel =
+    result.breakEvenDays === 0
+      ? "Covered by resale"
+      : result.breakEvenDays === null
+        ? "Not available"
+        : `${Math.ceil(result.breakEvenDays).toLocaleString()} days`;
+  const breakEvenNote =
+    result.breakEvenDays === 0
+      ? result.resaleSurplus > 0
+        ? `Expected resale covers the investment with ${money(result.resaleSurplus)} left over.`
+        : "Expected resale covers the full investment before Amazon earnings."
+      : result.breakEvenDays === null
+        ? "Enter enough sales, price, and commission information to project monthly Amazon earnings."
+        : "Estimated days for Amazon earnings to recover the net investment after expected resale, using a 30-day month.";
+
+  $("#calcBreakEvenDays").textContent = breakEvenLabel;
+  $("#calcBreakEvenNote").textContent = breakEvenNote;
+  $("#calcAttributedSales").textContent = result.attributedSales.toFixed(2);
+  $("#calcMonthlyEarnings").textContent = money(result.monthlyEarnings);
+  $("#calcNetInvestment").textContent = money(result.netInvestment);
+  $("#calcResaleRecovery").textContent = money(result.resaleValue);
+  $("#calcEarningsEquation").textContent =
+    `(${formatCalculatorNumber(result.monthlySales)} x ${formatCalculatorNumber(result.attributedVelocity * 100)}% / ` +
+    `${formatCalculatorNumber(result.carouselVideos)}) x ${money(result.amazonPrice)} x ` +
+    `(${formatCalculatorNumber(result.commissionRate * 100)}% + ${formatCalculatorNumber(result.ccBonusRate * 100)}%) = ` +
+    `${money(result.monthlyEarnings)}/month`;
+  $("#calcInvestmentEquation").textContent =
+    `${money(result.investmentPrice)} investment - ${money(result.resaleValue)} resale = ${money(result.netInvestment)} net investment`;
+}
+
+function formatCalculatorNumber(value) {
+  return Number(value.toFixed(2)).toString();
+}
+
+function resetBreakEvenCalculator() {
+  const defaults = {
+    calcMonthlySales: 100,
+    calcAttributedVelocity: 4,
+    calcCarouselVideos: 4,
+    calcAmazonPrice: 100,
+    calcCommissionRate: 2,
+    calcCcBonusRate: 0,
+    calcInvestmentPrice: 100,
+    calcResaleValue: 0,
+  };
+  for (const [id, value] of Object.entries(defaults)) $(`#${id}`).value = value;
+  renderBreakEvenCalculator();
 }
 
 function renderCloudAccount() {

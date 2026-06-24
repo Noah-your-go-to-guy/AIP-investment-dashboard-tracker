@@ -132,3 +132,10 @@
 - Add better monthly import reconciliation if Amazon reporting formats become consistent.
 - Add duplicate product warnings when a new ASIN/title is already tracked.
 - Add backup reminder or automatic export prompt before clearing data.
+# Break-Even Calculator
+
+- The dashboard includes a temporary Calculator tab for evaluating a product before purchase.
+- Calculator estimates are never persisted locally or to Supabase and do not affect products, revenue, ROI, or exports.
+- Amazon product price is used for commission estimates. Investment price is the user's actual cash cost. Expected resale value is entered separately as net cash after fees and shipping.
+- Monthly earnings use `(monthly sales * attributed velocity / carousel videos) * Amazon price * (commission rate + Creator Connections bonus rate)`.
+- Net investment is `max(investment price - expected resale value, 0)`. Break-even days use `(net investment / estimated monthly Amazon earnings) * 30`.

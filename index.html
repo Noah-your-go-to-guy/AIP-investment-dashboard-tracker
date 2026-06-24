@@ -54,6 +54,7 @@
       <nav class="tabs" aria-label="Dashboard sections">
         <button class="tab active" data-tab="dashboard" type="button">Dashboard</button>
         <button class="tab" data-tab="products" type="button">Products</button>
+        <button class="tab" data-tab="calculator" type="button">Calculator</button>
         <button class="tab" data-tab="top-products" type="button">Top Products</button>
         <button class="tab" data-tab="import" type="button">CSV Import</button>
         <button class="tab" data-tab="matches" type="button">Match Review</button>
@@ -98,6 +99,123 @@
             </div>
             <div id="laggards" class="ranking-list"></div>
           </section>
+        </div>
+      </section>
+
+      <section id="calculator" class="tab-panel">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Decision tool</p>
+            <h2>Investment break-even calculator</h2>
+          </div>
+          <p>Test a product opportunity before buying it. These estimates never change your saved dashboard data.</p>
+        </div>
+
+        <div class="calculator-workspace">
+          <section class="panel calculator-input-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Assumptions</h2>
+                <p>Adjust any value to recalculate the opportunity instantly.</p>
+              </div>
+              <button id="resetCalculatorBtn" class="ghost-btn" type="button">Reset</button>
+            </div>
+
+            <div id="breakEvenCalculatorInputs" class="calculator-inputs">
+              <fieldset class="calculator-fieldset">
+                <legend>Demand and attribution</legend>
+                <label>
+                  Monthly Amazon unit sales
+                  <input id="calcMonthlySales" type="number" min="0" step="1" value="100" />
+                  <small>Estimated units this listing sells each month.</small>
+                </label>
+                <label>
+                  Attributed velocity
+                  <span class="input-suffix"><input id="calcAttributedVelocity" type="number" min="0" step="0.1" value="4" /><span>%</span></span>
+                  <small>Share of sales influenced by videos. The starting assumption is 4%.</small>
+                </label>
+                <label>
+                  Influencer videos in carousel
+                  <input id="calcCarouselVideos" type="number" min="1" step="1" value="4" />
+                  <small>Estimated number of videos competing for attributed sales.</small>
+                </label>
+              </fieldset>
+
+              <fieldset class="calculator-fieldset">
+                <legend>Amazon payout</legend>
+                <label>
+                  Amazon product price
+                  <span class="input-prefix"><span>$</span><input id="calcAmazonPrice" type="number" min="0" step="0.01" value="100" /></span>
+                  <small>The current listing price used to estimate commissions.</small>
+                </label>
+                <label>
+                  Standard commission rate
+                  <span class="input-suffix"><input id="calcCommissionRate" type="number" min="0" step="0.1" value="2" /><span>%</span></span>
+                  <small>Your category commission percentage.</small>
+                </label>
+                <label>
+                  Creator Connections bonus
+                  <span class="input-suffix"><input id="calcCcBonusRate" type="number" min="0" step="0.1" value="0" /><span>%</span></span>
+                  <small>Optional campaign bonus percentage. Leave at 0 when none applies.</small>
+                </label>
+              </fieldset>
+
+              <fieldset class="calculator-fieldset calculator-fieldset-wide">
+                <legend>Your investment</legend>
+                <label>
+                  Investment price paid
+                  <span class="input-prefix"><span>$</span><input id="calcInvestmentPrice" type="number" min="0" step="0.01" value="100" /></span>
+                  <small>Your actual cash cost, even when it is below Amazon's price.</small>
+                </label>
+                <label>
+                  Expected net resale value
+                  <span class="input-prefix"><span>$</span><input id="calcResaleValue" type="number" min="0" step="0.01" value="0" /></span>
+                  <small>Cash you expect to keep after marketplace fees and shipping.</small>
+                </label>
+              </fieldset>
+            </div>
+          </section>
+
+          <aside class="calculator-results-panel" aria-live="polite">
+            <div class="calculator-results-heading">
+              <span class="calculator-result-kicker">Projected outcome</span>
+              <strong id="calcBreakEvenDays">1,500 days</strong>
+              <small id="calcBreakEvenNote">Estimated days for Amazon earnings to recover the net investment.</small>
+            </div>
+
+            <div class="calculator-result-grid">
+              <article>
+                <span>Attributed sales/month</span>
+                <strong id="calcAttributedSales">1.00</strong>
+              </article>
+              <article>
+                <span>Amazon earnings/month</span>
+                <strong id="calcMonthlyEarnings">$2.00</strong>
+              </article>
+              <article>
+                <span>Net investment</span>
+                <strong id="calcNetInvestment">$100.00</strong>
+              </article>
+              <article>
+                <span>Expected resale recovery</span>
+                <strong id="calcResaleRecovery">$0.00</strong>
+              </article>
+            </div>
+
+            <div class="calculator-equation">
+              <span>Monthly earnings equation</span>
+              <code id="calcEarningsEquation"></code>
+            </div>
+            <div class="calculator-equation calculator-cost-equation">
+              <span>Net investment equation</span>
+              <code id="calcInvestmentEquation"></code>
+            </div>
+
+            <div class="calculator-disclaimer">
+              <strong>Estimates only</strong>
+              <span>Actual results depend on video placement, conversion, returns, changing prices, commission eligibility, and how Amazon attributes sales.</span>
+            </div>
+          </aside>
         </div>
       </section>
 
