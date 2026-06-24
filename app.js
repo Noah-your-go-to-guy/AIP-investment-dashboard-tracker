@@ -1799,9 +1799,59 @@ function renderImportHistory() {
           <div><dt>Ignored low-confidence/noise</dt><dd>${ignoredCount}</dd></div>
           <div><dt>Duplicates skipped</dt><dd>${duplicateCount}</dd></div>
         </dl>
+        <div class="import-history-actions">
+          <button class="danger-btn" data-remove-import-batch="${batch.id}" type="button">Remove CSV</button>
+        </div>
       </article>`;
     })
     .join("");
+  target.querySelectorAll("[data-remove-import-batch]").forEach((button) => {
+    button.addEventListener("click", () => removeImportBatch(button.dataset.removeImportBatch, button));
+  });
+}
+
+function revenueRowsForImportBatch(batchId, entries = state.revenueEntries) {
+  return entries.filter((entry) => entry.importBatchId === batchId);
+}
+
+async function deleteImportBatchData(batchId, removeRows = removeMany, removeBatch = remove) {
+  const revenueRows = revenueRowsForImportBatch(batchId);
+  await removeRows("revenueEntries", revenueRows.map((entry) => entry.id));
+  await removeBatch("importBatches", batchId);
+  return { removedRows: revenueRows.length };
+}
+
+async function removeImportBatch(batchId, button) {
+  const batch = state.importBatches.find((item) => item.id === batchId);
+  if (!batch) {
+    toast("That CSV import could not be found.");
+    return;
+  }
+  const revenueRows = revenueRowsForImportBatch(batchId);
+  const fileName = batch.fileName || "Imported CSV";
+  const confirmed = confirm(
+    `Remove ${fileName} and its ${revenueRows.length} imported revenue row${revenueRows.length === 1 ? "" : "s"}? Products, other CSVs, manual revenue, and approved matching rules will stay.`
+  );
+  if (!confirmed) return;
+
+  button.disabled = true;
+  button.textContent = "Removing...";
+  try {
+    const result = await deleteImportBatchData(batchId);
+    await refreshState();
+    render();
+    $("#importSummary").innerHTML = `<article class="rank-card">
+      <strong>CSV import removed</strong>
+      <span>${escapeHtml(fileName)} and ${result.removedRows} imported revenue row${result.removedRows === 1 ? "" : "s"} were removed.</span>
+      <span>Products, other CSVs, manual revenue, and approved matching rules were kept.</span>
+    </article>`;
+    toast(`${fileName} removed.`);
+  } catch (error) {
+    console.error("CSV import removal failed", error);
+    button.disabled = false;
+    button.textContent = "Remove CSV";
+    toast("Could not remove that CSV import.");
+  }
 }
 
 function normalizeImportRow(row, mapping, fallbackDate = "") {

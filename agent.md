@@ -139,3 +139,10 @@
 - Amazon product price is used for commission estimates. Investment price is the user's actual cash cost. Expected resale value is entered separately as net cash after fees and shipping.
 - Monthly earnings use `(monthly sales * attributed velocity / carousel videos) * Amazon price * (commission rate + Creator Connections bonus rate)`.
 - Net investment is `max(investment price - expected resale value, 0)`. Break-even days use `(net investment / estimated monthly Amazon earnings) * 30`.
+
+# Individual CSV Removal
+
+- Every CSV import-history card has a Remove CSV action.
+- Removing one batch deletes only revenue rows with that `importBatchId` and the matching import-history record.
+- Products, other CSV batches, manual revenue, and approved matching rules are preserved.
+- Deleting the batch also removes its stored file hash, allowing a corrected copy of that CSV to be uploaded again.
