@@ -146,3 +146,9 @@
 - Removing one batch deletes only revenue rows with that `importBatchId` and the matching import-history record.
 - Products, other CSV batches, manual revenue, and approved matching rules are preserved.
 - Deleting the batch also removes its stored file hash, allowing a corrected copy of that CSV to be uploaded again.
+
+# Supabase Pagination
+
+- Cloud stores must be read in pages because Supabase limits a single response to 1,000 rows by default.
+- `fetchAllCloudRecords` requests deterministic 1,000-row ranges until it reaches a partial or empty page.
+- Without pagination, uploading enough revenue rows can hide older earnings from dashboard calculations even though the records remain safely stored in Supabase.

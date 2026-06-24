@@ -7,6 +7,7 @@ const STATUSES = ["researched", "bought", "received", "filmed", "posted", "earni
 const PURCHASED_STATUSES = ["bought", "received", "filmed", "posted", "earning", "paid off"];
 const VIDEO_STATUSES = ["not filmed", "filmed", "posted", "needs check"];
 const OPTIONAL_MAPPING = "Do not import";
+const CLOUD_PAGE_SIZE = 1000;
 const MATCH_REVIEW_MIN_SCORE = 0.02;
 const MATCH_SUGGESTION_MIN_SCORE = 0.48;
 const GENERIC_IMPORT_LABELS = new Set([
@@ -162,11 +163,27 @@ function localClearStore(storeName) {
 
 async function getAll(storeName) {
   if (!cloudStorageActive()) return localGetAll(storeName);
+  return fetchAllCloudRecords(storeName);
+}
+
+async function fetchAllCloudRecords(storeName, fetchPage = fetchCloudRecordsPage) {
+  const records = [];
+  for (let offset = 0; ; offset += CLOUD_PAGE_SIZE) {
+    const page = await fetchPage(storeName, offset, offset + CLOUD_PAGE_SIZE - 1);
+    records.push(...page);
+    if (page.length < CLOUD_PAGE_SIZE) return records;
+  }
+}
+
+async function fetchCloudRecordsPage(storeName, from, to) {
   const { data, error } = await supabaseClient
     .from("dashboard_records")
     .select("data")
+    .eq("user_id", state.cloudUser.id)
     .eq("store", storeName)
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .order("id", { ascending: true })
+    .range(from, to);
   if (error) throw error;
   return (data || []).map((row) => row.data).filter(Boolean);
 }
