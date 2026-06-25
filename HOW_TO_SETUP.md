@@ -115,11 +115,13 @@ This is the recommended capture tool. You only do this once.
 
 The extension saves to your signed-in cloud account in Supabase. Sign in or create an account in the dashboard first. For local-only use, use the bookmarklet fallback.
 
+If you do not already have the extension files on your computer, click `Download Chrome extension ZIP` in the dashboard `Setup` tab. Unzip the download before loading it in Chrome.
+
 1. Open Chrome.
 2. Go to `chrome://extensions`.
 3. Turn on `Developer mode`.
 4. Click `Load unpacked`.
-5. Choose the extension folder named `extension` inside the dashboard folder you downloaded from GitHub.
+5. Choose the unzipped extension folder named `extension`.
 6. Open Chrome's extensions menu.
 7. Pin `AIP Portfolio Capture`.
 

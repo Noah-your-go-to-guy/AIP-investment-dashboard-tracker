@@ -7,6 +7,7 @@ const indexHtml = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf
 const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
 const setupGuide = fs.readFileSync(path.join(__dirname, "..", "HOW_TO_SETUP.md"), "utf8");
 const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "extension", "manifest.json"), "utf8"));
+const extensionZipPath = path.join(__dirname, "..", "downloads", "aip-portfolio-capture-extension.zip");
 
 test("setup tab recommends the Chrome extension before the bookmarklet fallback", () => {
   const extensionIndex = indexHtml.indexOf("Recommended: Chrome extension");
@@ -27,6 +28,15 @@ test("docs explain unpacked extension setup from GitHub", () => {
     assert.match(doc, /Load unpacked/);
     assert.match(doc, /extension folder/i);
   }
+});
+
+test("setup offers a downloadable Chrome extension zip", () => {
+  assert.match(indexHtml, /Download Chrome extension ZIP/);
+  assert.match(indexHtml, /href="\.\/downloads\/aip-portfolio-capture-extension\.zip"/);
+  assert.match(indexHtml, /Unzip the download/);
+  assert.match(readme, /Download Chrome extension ZIP/);
+  assert.match(setupGuide, /Download Chrome extension ZIP/);
+  assert.ok(fs.existsSync(extensionZipPath), "expected downloadable extension zip to exist");
 });
 
 test("extension setup explains signed-in cloud storage requirement", () => {

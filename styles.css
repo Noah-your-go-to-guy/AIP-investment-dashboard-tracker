@@ -1365,6 +1365,32 @@ tbody tr:hover {
   text-align: center;
 }
 
+.extension-download-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #f7fbf8;
+}
+
+.extension-download-card div {
+  display: grid;
+  gap: 4px;
+}
+
+.extension-download-card span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.extension-download-card .primary-btn {
+  text-align: center;
+  white-space: nowrap;
+}
+
 .setup-install-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
@@ -2024,6 +2050,15 @@ dialog::backdrop {
 
   .setup-install-layout {
     grid-template-columns: 1fr;
+  }
+
+  .extension-download-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .extension-download-card .primary-btn {
+    width: 100%;
   }
 
   .setup-bookmarklet-card {
