@@ -115,6 +115,10 @@ This is the recommended capture tool. You only do this once.
 
 The extension saves to your signed-in cloud account in Supabase. Sign in or create an account in the dashboard first. For local-only use, use the bookmarklet fallback.
 
+Fastest friends-only setup: click `Download Windows setup helper` or `Download Mac setup helper` in the dashboard `Setup` tab. The setup helper downloads the verified extension package, prepares it in your Documents folder, copies the extension folder path, and opens Chrome extensions. You still need to turn on Developer mode, click `Load unpacked`, and choose the copied folder path.
+
+Mac note: if double-clicking the helper does not open, open Terminal and run `bash ~/Downloads/install-aip-extension-mac.command`.
+
 If you do not already have the extension files on your computer, click `Download Chrome extension ZIP` in the dashboard `Setup` tab. Unzip the download before loading it in Chrome.
 
 1. Open Chrome.

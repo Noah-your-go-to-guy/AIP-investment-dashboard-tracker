@@ -8,6 +8,9 @@ const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
 const setupGuide = fs.readFileSync(path.join(__dirname, "..", "HOW_TO_SETUP.md"), "utf8");
 const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "extension", "manifest.json"), "utf8"));
 const extensionZipPath = path.join(__dirname, "..", "downloads", "aip-portfolio-capture-extension.zip");
+const windowsHelperPath = path.join(__dirname, "..", "downloads", "install-aip-extension-windows.cmd");
+const macHelperPath = path.join(__dirname, "..", "downloads", "install-aip-extension-mac.command");
+const extensionZipSha256 = "48E296691AD56394AFA21C8A4AE0970DB238FB687119B2931B287FA4C4F27063";
 
 test("setup tab recommends the Chrome extension before the bookmarklet fallback", () => {
   const extensionIndex = indexHtml.indexOf("Recommended: Chrome extension");
@@ -37,6 +40,30 @@ test("setup offers a downloadable Chrome extension zip", () => {
   assert.match(readme, /Download Chrome extension ZIP/);
   assert.match(setupGuide, /Download Chrome extension ZIP/);
   assert.ok(fs.existsSync(extensionZipPath), "expected downloadable extension zip to exist");
+});
+
+test("setup offers friend-friendly helper downloads for Chrome extension setup", () => {
+  assert.match(indexHtml, /Download Windows setup helper/);
+  assert.match(indexHtml, /href="\.\/downloads\/install-aip-extension-windows\.cmd"/);
+  assert.match(indexHtml, /Download Mac setup helper/);
+  assert.match(indexHtml, /href="\.\/downloads\/install-aip-extension-mac\.command"/);
+  assert.match(indexHtml, /copies the extension folder path/i);
+  assert.match(readme, /setup helper/i);
+  assert.match(setupGuide, /setup helper/i);
+  assert.ok(fs.existsSync(windowsHelperPath), "expected Windows setup helper to exist");
+  assert.ok(fs.existsSync(macHelperPath), "expected Mac setup helper to exist");
+});
+
+test("setup helpers download the official extension zip and verify its checksum", () => {
+  const windowsHelper = fs.readFileSync(windowsHelperPath, "utf8");
+  const macHelper = fs.readFileSync(macHelperPath, "utf8");
+
+  for (const helper of [windowsHelper, macHelper]) {
+    assert.match(helper, /aip-investment-dashboard-tracker\.vercel\.app\/downloads\/aip-portfolio-capture-extension\.zip/);
+    assert.match(helper, new RegExp(extensionZipSha256, "i"));
+    assert.match(helper, /AIP Portfolio Extension/);
+    assert.match(helper, /chrome:\/\/extensions/);
+  }
 });
 
 test("extension setup explains signed-in cloud storage requirement", () => {

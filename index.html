@@ -463,13 +463,24 @@
               <span class="setup-phase">Part 1</span>
               <div>
                 <h3>Recommended: Chrome extension</h3>
-                <p>Use the unpacked extension from the dashboard folder when you want the fastest Amazon capture flow.</p>
+                <p>Use the setup helper when you want the fastest Amazon capture flow without using the Chrome Web Store.</p>
                 <p>The extension saves to your signed-in cloud account in Supabase. Sign in or create an account in the dashboard first. For local-only use, use the bookmarklet fallback.</p>
               </div>
             </div>
             <div class="extension-download-card">
               <div>
-                <strong>Need the extension files?</strong>
+                <strong>Easiest friends-only setup</strong>
+                <span>The helper downloads the verified extension ZIP, prepares the folder in Documents, copies the extension folder path, and opens <b>chrome://extensions</b>. You still click <b>Load unpacked</b> in Chrome.</span>
+                <span>Mac note: if double-clicking the helper does not open, run <code>bash ~/Downloads/install-aip-extension-mac.command</code> in Terminal.</span>
+              </div>
+              <div class="helper-download-actions">
+                <a class="primary-btn" href="./downloads/install-aip-extension-windows.cmd" download>Download Windows setup helper</a>
+                <a class="secondary-btn" href="./downloads/install-aip-extension-mac.command" download>Download Mac setup helper</a>
+              </div>
+            </div>
+            <div class="extension-download-card">
+              <div>
+                <strong>Manual fallback</strong>
                 <span>Download the ZIP. Unzip the download, then choose the unzipped <b>extension folder</b> when Chrome asks for <b>Load unpacked</b>.</span>
               </div>
               <a class="primary-btn" href="./downloads/aip-portfolio-capture-extension.zip" download>Download Chrome extension ZIP</a>

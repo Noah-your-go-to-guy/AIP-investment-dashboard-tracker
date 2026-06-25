@@ -83,6 +83,7 @@
   - It reads title, ASIN, brand, category, Amazon price, and Amazon link from the current Amazon product page.
   - It lets the user edit purchase date and purchase price before saving.
   - It writes directly to Supabase `public.dashboard_records`.
+  - Friends-only setup helpers live in `downloads/install-aip-extension-windows.cmd` and `downloads/install-aip-extension-mac.command`; they download the verified extension ZIP, expand it to Documents, copy the extension folder path, and open `chrome://extensions`.
   - The setup tab links to `downloads/aip-portfolio-capture-extension.zip`; users download it, unzip it, then select the unzipped `extension` folder in Chrome's `Load unpacked` flow.
   - Chrome Web Store prep lives in `CHROME_WEB_STORE_SUBMISSION.md`; the store upload package is `store-packages/aip-portfolio-capture-0.1.0.zip` with `manifest.json` at the ZIP root.
   - The bookmarklet remains the fallback capture path.

@@ -1391,6 +1391,19 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
+.helper-download-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.helper-download-actions .primary-btn,
+.helper-download-actions .secondary-btn {
+  text-align: center;
+  white-space: nowrap;
+}
+
 .setup-install-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
@@ -2058,6 +2071,15 @@ dialog::backdrop {
   }
 
   .extension-download-card .primary-btn {
+    width: 100%;
+  }
+
+  .helper-download-actions {
+    width: 100%;
+  }
+
+  .helper-download-actions .primary-btn,
+  .helper-download-actions .secondary-btn {
     width: 100%;
   }
 

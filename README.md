@@ -65,6 +65,10 @@ Use the `http://127.0.0.1:4173/` version, not `file:///.../index.html`.
 
 The extension saves to your signed-in cloud account in Supabase. Sign in or create an account in the dashboard first. For local-only use, use the bookmarklet fallback.
 
+For the easiest friends-only setup, open the dashboard `Setup` tab and click `Download Windows setup helper` or `Download Mac setup helper`. The setup helper downloads the verified extension package, prepares it in your Documents folder, copies the extension folder path, and opens Chrome extensions. You still need to turn on Developer mode, click `Load unpacked`, and choose the copied folder path.
+
+Mac note: if double-clicking the helper does not open, open Terminal and run `bash ~/Downloads/install-aip-extension-mac.command`.
+
 In the dashboard `Setup` tab, click `Download Chrome extension ZIP` if you do not already have the repo files on your computer. Unzip the download before loading it in Chrome.
 
 Open Chrome and go to:
