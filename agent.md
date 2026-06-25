@@ -83,6 +83,7 @@
   - It reads title, ASIN, brand, category, Amazon price, and Amazon link from the current Amazon product page.
   - It lets the user edit purchase date and purchase price before saving.
   - It writes directly to Supabase `public.dashboard_records`.
+  - The setup tab links to `downloads/aip-portfolio-capture-extension.zip`; users download it, unzip it, then select the unzipped `extension` folder in Chrome's `Load unpacked` flow.
   - The bookmarklet remains the fallback capture path.
 - Current no-API autofill approach:
   - Paste raw ASIN or Amazon product link and extract ASIN.
