@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="AIP Portfolio Capture">
+  <defs>
+    <linearGradient id="aip-bg" x1="18" y1="110" x2="110" y2="18" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="0.55" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#aip-bg)"/>
+  <path d="M35 88 58 35h13l23 53H80l-4-11H53l-4 11H35Zm22-22h15l-7-19h-1l-7 19Z" fill="#fff"/>
+  <path d="M36 96h56" stroke="#fbbf24" stroke-width="8" stroke-linecap="round"/>
+</svg>
