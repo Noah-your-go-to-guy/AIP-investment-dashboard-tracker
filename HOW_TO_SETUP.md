@@ -113,6 +113,8 @@ The `http://127.0.0.1:4173/` address is still only running on your computer. It 
 
 This is the recommended capture tool. You only do this once.
 
+The extension saves to your signed-in cloud account in Supabase. Sign in or create an account in the dashboard first. For local-only use, use the bookmarklet fallback.
+
 1. Open Chrome.
 2. Go to `chrome://extensions`.
 3. Turn on `Developer mode`.

@@ -29,6 +29,15 @@ test("docs explain unpacked extension setup from GitHub", () => {
   }
 });
 
+test("extension setup explains signed-in cloud storage requirement", () => {
+  for (const doc of [indexHtml, readme, setupGuide]) {
+    assert.match(doc, /sign in or create an account/i);
+    assert.match(doc, /cloud account/i);
+    assert.match(doc, /Supabase/i);
+    assert.match(doc, /local-only[\s\S]*bookmarklet fallback/i);
+  }
+});
+
 test("extension manifest targets Amazon and Supabase only for the MVP", () => {
   assert.equal(manifest.manifest_version, 3);
   assert.ok(manifest.host_permissions.includes("https://*.amazon.com/*"));

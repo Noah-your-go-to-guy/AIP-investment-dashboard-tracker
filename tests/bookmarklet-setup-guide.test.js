@@ -19,9 +19,19 @@ test("setup tab explains the complete one-time Chrome bookmarklet setup", () => 
   }
 });
 
-test("setup tab explains how to capture and import each investment product", () => {
+test("setup tab scopes bookmarklet JSON import workflow as fallback", () => {
+  const workflowIndex = indexHtml.indexOf("Bookmarklet fallback product workflow");
+  const jsonIndex = indexHtml.indexOf("Copied product capture JSON");
+  const importIndex = indexHtml.indexOf("Import pasted capture");
+
+  assert.notEqual(workflowIndex, -1);
+  assert.notEqual(jsonIndex, -1);
+  assert.notEqual(importIndex, -1);
+  assert.ok(workflowIndex < jsonIndex);
+  assert.ok(workflowIndex < importIndex);
+
   for (const instruction of [
-    "For every investment product",
+    "For local-only or fallback capture",
     "Open the exact Amazon product page",
     "Copied product capture JSON",
     "Add product",

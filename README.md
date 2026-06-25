@@ -63,6 +63,8 @@ Use the `http://127.0.0.1:4173/` version, not `file:///.../index.html`.
 
 ## Setup Chrome Extension (Recommended)
 
+The extension saves to your signed-in cloud account in Supabase. Sign in or create an account in the dashboard first. For local-only use, use the bookmarklet fallback.
+
 Open Chrome and go to:
 
 ```text
