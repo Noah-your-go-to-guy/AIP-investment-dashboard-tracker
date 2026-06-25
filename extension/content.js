@@ -5,7 +5,17 @@
     visible: false,
     product: null,
     user: null,
+    previouslyFocusedElement: null,
   };
+
+  const FOCUSABLE_SELECTOR = [
+    "a[href]",
+    "button:not([disabled])",
+    "input:not([disabled])",
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(",");
 
   function pageAdapter() {
     return {
@@ -75,6 +85,42 @@
     return root;
   }
 
+  function panelElement() {
+    return document.querySelector("#aip-capture-root .aip-panel");
+  }
+
+  function focusableElements() {
+    const panel = panelElement();
+    if (!panel) {
+      return [];
+    }
+    return Array.from(panel.querySelectorAll(FOCUSABLE_SELECTOR)).filter((element) => {
+      return element.offsetParent !== null || element === document.activeElement;
+    });
+  }
+
+  function focusFirstAction() {
+    const firstAction = focusableElements()[0];
+    if (firstAction && typeof firstAction.focus === "function") {
+      firstAction.focus({ preventScroll: true });
+    }
+  }
+
+  function restorePreviousFocus() {
+    const previous = state.previouslyFocusedElement;
+    state.previouslyFocusedElement = null;
+
+    if (previous && typeof previous.focus === "function" && document.contains(previous)) {
+      previous.focus({ preventScroll: true });
+    }
+  }
+
+  function closeOverlay() {
+    state.visible = false;
+    render();
+    restorePreviousFocus();
+  }
+
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, (char) => ({
       "&": "&amp;",
@@ -133,6 +179,7 @@
     `;
 
     bindPanelEvents();
+    focusFirstAction();
   }
 
   function renderSignInForm() {
@@ -176,8 +223,7 @@
 
   function bindPanelEvents() {
     document.getElementById("aipCloseButton")?.addEventListener("click", () => {
-      state.visible = false;
-      render();
+      closeOverlay();
     });
 
     document.getElementById("aipOpenDashboardButton")?.addEventListener("click", () => {
@@ -241,19 +287,59 @@
     state.visible = !state.visible;
 
     if (state.visible) {
+      state.previouslyFocusedElement = document.activeElement;
       extractCurrentProduct();
       await refreshSession();
+    } else {
+      restorePreviousFocus();
     }
 
     render();
   }
+
+  document.addEventListener("keydown", (event) => {
+    if (!state.visible) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeOverlay();
+      return;
+    }
+
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const actions = focusableElements();
+    if (!actions.length) {
+      event.preventDefault();
+      return;
+    }
+
+    const firstAction = actions[0];
+    const lastAction = actions[actions.length - 1];
+
+    if (event.shiftKey && document.activeElement === firstAction) {
+      event.preventDefault();
+      lastAction.focus();
+    } else if (!event.shiftKey && document.activeElement === lastAction) {
+      event.preventDefault();
+      firstAction.focus();
+    }
+  });
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message || message.type !== "AIP_TOGGLE_OVERLAY") {
       return undefined;
     }
 
-    toggleOverlay().then(() => sendResponse({ ok: true }));
+    toggleOverlay()
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => {
+        sendResponse({ ok: false, error: error?.message || "Failed to toggle AIP overlay." });
+      });
     return true;
   });
 })();
