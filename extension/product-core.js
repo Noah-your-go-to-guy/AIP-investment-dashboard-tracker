@@ -68,6 +68,7 @@
     const existing = settings.existingProduct || {};
     const asin = normalizeAsin(source.asin);
     const nowIso = settings.nowIso || new Date().toISOString();
+    const hasPurchasePrice = Object.prototype.hasOwnProperty.call(settings, "purchasePrice");
 
     if (!asin) {
       throw new Error("ASIN is required");
@@ -82,7 +83,7 @@
       updatedAt: nowIso,
       status: "bought",
       purchaseDate: settings.purchaseDate || todayInputValue(),
-      purchasePrice: parseMoney(settings.purchasePrice),
+      purchasePrice: hasPurchasePrice ? parseMoney(settings.purchasePrice) : Number(source.amazonPrice || 0),
       tax: Number(existing.tax || 0),
       shipping: Number(existing.shipping || 0),
       discounts: Number(existing.discounts || 0),
@@ -90,6 +91,11 @@
       resaleAmount: Number(existing.resaleAmount || 0),
       videoStatus: source.videoStatus || existing.videoStatus || "not filmed",
       notes: existing.notes || source.notes || "",
+      storefrontLink: existing.storefrontLink || source.storefrontLink || "",
+      videos: Array.isArray(existing.videos) ? existing.videos : (Array.isArray(source.videos) ? source.videos : []),
+      resaleDate: existing.resaleDate || source.resaleDate || "",
+      filmedDate: existing.filmedDate || source.filmedDate || "",
+      postedDate: existing.postedDate || source.postedDate || "",
     };
   }
 

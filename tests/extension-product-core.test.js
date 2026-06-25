@@ -53,7 +53,16 @@ test("buildBoughtProductRecord creates dashboard-compatible bought product data"
   };
 
   const product = core.buildBoughtProductRecord(captured, {
-    existingProduct: { id: "existing-id", createdAt: "2026-01-01T00:00:00.000Z", notes: "Old note" },
+    existingProduct: {
+      id: "existing-id",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      notes: "Old note",
+      storefrontLink: "https://amazon.com/shop/example",
+      videos: [{ id: "video-1", title: "Lamp review" }],
+      resaleDate: "2026-07-01",
+      filmedDate: "2026-06-26",
+      postedDate: "2026-06-27",
+    },
     purchasePrice: "19.50",
     purchaseDate: "2026-06-25",
     nowIso: "2026-06-25T15:30:00.000Z",
@@ -71,6 +80,63 @@ test("buildBoughtProductRecord creates dashboard-compatible bought product data"
   assert.equal(product.refunds, 0);
   assert.equal(product.videoStatus, "not filmed");
   assert.equal(product.notes, "Old note");
+  assert.equal(product.storefrontLink, "https://amazon.com/shop/example");
+  assert.deepEqual(product.videos, [{ id: "video-1", title: "Lamp review" }]);
+  assert.equal(product.resaleDate, "2026-07-01");
+  assert.equal(product.filmedDate, "2026-06-26");
+  assert.equal(product.postedDate, "2026-06-27");
+});
+
+test("buildBoughtProductRecord defaults omitted purchase price to captured Amazon price", () => {
+  const product = core.buildBoughtProductRecord(
+    {
+      asin: "B0TEST1234",
+      title: "Example Bright Desk Lamp, Black",
+      amazonPrice: 24.99,
+    },
+    {
+      purchaseDate: "2026-06-25",
+      nowIso: "2026-06-25T15:30:00.000Z",
+    }
+  );
+
+  assert.equal(product.purchasePrice, 24.99);
+});
+
+test("buildBoughtProductRecord creates the full new-record dashboard shape", () => {
+  const product = core.buildBoughtProductRecord(
+    {
+      asin: "B0TEST1234",
+      title: "Example Bright Desk Lamp, Black",
+      brand: "ExampleCo",
+      category: "Desk Lamps",
+      amazonPrice: 24.99,
+      amazonLink: "https://www.amazon.com/dp/B0TEST1234",
+    },
+    {
+      purchaseDate: "2026-06-25",
+      nowIso: "2026-06-25T15:30:00.000Z",
+    }
+  );
+
+  assert.equal(product.id, "asin-B0TEST1234");
+  assert.equal(product.createdAt, "2026-06-25T15:30:00.000Z");
+  assert.equal(product.updatedAt, "2026-06-25T15:30:00.000Z");
+  assert.equal(product.status, "bought");
+  assert.equal(product.purchaseDate, "2026-06-25");
+  assert.equal(product.purchasePrice, 24.99);
+  assert.equal(product.tax, 0);
+  assert.equal(product.shipping, 0);
+  assert.equal(product.discounts, 0);
+  assert.equal(product.refunds, 0);
+  assert.equal(product.resaleAmount, 0);
+  assert.equal(product.videoStatus, "not filmed");
+  assert.equal(product.notes, "");
+  assert.equal(product.storefrontLink, "");
+  assert.deepEqual(product.videos, []);
+  assert.equal(product.resaleDate, "");
+  assert.equal(product.filmedDate, "");
+  assert.equal(product.postedDate, "");
 });
 
 test("buildBoughtProductRecord refuses to save without an ASIN", () => {
