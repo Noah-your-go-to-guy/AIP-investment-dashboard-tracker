@@ -15,7 +15,14 @@
   }
 
   async function parseResponse(response) {
-    const payload = await response.json();
+    let payload = {};
+    try {
+      payload = await response.json();
+    } catch (error) {
+      if (!response.ok) {
+        throw new Error("Supabase request failed");
+      }
+    }
     if (!response.ok) {
       throw new Error(payload.error_description || payload.message || payload.error || "Supabase request failed");
     }
@@ -51,11 +58,11 @@
     return withExpiresAt(await parseResponse(response), settings.nowMs);
   }
 
-  async function findExistingProductByAsin(asin, accessToken, options) {
+  async function findExistingProductByAsin(asin, userId, accessToken, options) {
     const settings = options || {};
     const fetchImpl = settings.fetchImpl || fetch;
     const response = await fetchImpl(
-      `${SUPABASE_URL}/rest/v1/dashboard_records?store=eq.products&select=id,data&order=updated_at.desc&limit=1000`,
+      `${SUPABASE_URL}/rest/v1/dashboard_records?store=eq.products&user_id=eq.${encodeURIComponent(userId)}&select=id,data&order=updated_at.desc&limit=1000`,
       {
         method: "GET",
         headers: requestHeaders(accessToken),
