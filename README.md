@@ -61,7 +61,27 @@ http://127.0.0.1:4173/
 
 Use the `http://127.0.0.1:4173/` version, not `file:///.../index.html`.
 
-## Setup Bookmarklet
+## Setup Chrome Extension (Recommended)
+
+The extension saves to your signed-in cloud account in Supabase. Sign in or create an account in the dashboard first. For local-only use, use the bookmarklet fallback.
+
+Open Chrome and go to:
+
+```text
+chrome://extensions
+```
+
+Turn on `Developer mode`.
+
+Click `Load unpacked`.
+
+Choose the extension folder named `extension` inside the dashboard folder you downloaded from GitHub.
+
+Open Chrome's extensions menu, then pin `AIP Portfolio Capture`.
+
+On an Amazon product page, click the pinned extension, review the captured product details, edit the purchase date or price if needed, then click `Save as bought`.
+
+## Setup Bookmarklet (Fallback)
 
 Open the dashboard and click the `Setup` tab.
 

@@ -2,7 +2,7 @@
 
 This guide explains how to get the dashboard from GitHub, run it on your own computer, capture Amazon products, and upload weekly earnings CSVs.
 
-The dashboard is local-first. Your product costs, CSV income, matches, and notes are stored in your own browser on your own computer.
+The dashboard is local-first when you are signed out. Signed-out data stays in your own browser on your own computer. If you sign in and use the Chrome extension, your products and dashboard data save to your signed-in Supabase cloud account so they can sync across browsers.
 
 ## Quick Overview
 
@@ -11,7 +11,7 @@ Use this order:
 1. Download the dashboard from GitHub.
 2. Start it with the launcher for your computer.
 3. Open `http://127.0.0.1:4173/`.
-4. Set up the Amazon bookmarklet one time.
+4. Set up the Amazon Chrome extension one time.
 5. Add products before uploading earnings CSVs.
 6. Upload weekly CSVs and map income to `Commission earned`.
 7. Review suggested matches.
@@ -109,7 +109,29 @@ Important: use the `http://127.0.0.1:4173/` version, not the `file:///.../index.
 
 The `http://127.0.0.1:4173/` address is still only running on your computer. It is not public. It just gives the browser a normal local web app address so imports, backups, and storage behave more reliably.
 
-## 4. Set Up the Amazon Bookmarklet
+## 4. Set Up the Amazon Chrome Extension
+
+This is the recommended capture tool. You only do this once.
+
+The extension saves to your signed-in cloud account in Supabase. Sign in or create an account in the dashboard first. For local-only use, use the bookmarklet fallback.
+
+1. Open Chrome.
+2. Go to `chrome://extensions`.
+3. Turn on `Developer mode`.
+4. Click `Load unpacked`.
+5. Choose the extension folder named `extension` inside the dashboard folder you downloaded from GitHub.
+6. Open Chrome's extensions menu.
+7. Pin `AIP Portfolio Capture`.
+
+When you buy an Amazon product for the dashboard:
+
+1. Open the Amazon product page.
+2. Click the pinned `AIP Portfolio Capture` extension.
+3. Review the title, ASIN, brand, category, Amazon price, and link.
+4. Edit the purchase date or purchase price if needed.
+5. Click `Save as bought`.
+
+## 4B. Set Up the Amazon Bookmarklet Fallback
 
 You only do this once. Do not make a new bookmark for every product.
 
@@ -131,7 +153,11 @@ Important: add the product to the dashboard before uploading earnings CSVs.
 
 If the product is not in the dashboard first, imported earnings may stay unmatched or go to review instead of counting toward that product.
 
-## 6. Add a Product From Amazon
+## 6. Add a Product With the Bookmarklet Fallback
+
+Skip this section if you are using the Chrome extension. The extension saves the product directly as `bought` after you sign in, review the Amazon price, and choose the purchase date.
+
+Use these steps only if you want local-only capture or if the Chrome extension is not working for that product page.
 
 1. Open the Amazon product page.
 2. Click your `Send to AIP Dashboard` bookmark.

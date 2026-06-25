@@ -77,6 +77,13 @@
 ## Hybrid Product Autofill
 - The user cannot use Amazon Product Advertising API / Creators API credentials.
 - Do not plan around paid/API-only lookup as the default.
+- Chrome Extension MVP notes:
+  - The preferred capture path is the unpacked Chrome extension in `extension/`.
+  - The extension only saves products as bought for the MVP.
+  - It reads title, ASIN, brand, category, Amazon price, and Amazon link from the current Amazon product page.
+  - It lets the user edit purchase date and purchase price before saving.
+  - It writes directly to Supabase `public.dashboard_records`.
+  - The bookmarklet remains the fallback capture path.
 - Current no-API autofill approach:
   - Paste raw ASIN or Amazon product link and extract ASIN.
   - Normalize Amazon link to `https://www.amazon.com/dp/{ASIN}`.
