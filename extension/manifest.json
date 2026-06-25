@@ -19,13 +19,11 @@
     "128": "icons/icon.svg"
   },
   "permissions": [
-    "storage",
-    "tabs"
+    "storage"
   ],
   "host_permissions": [
     "https://*.amazon.com/*",
-    "https://gvifstpfolidkvxjeftx.supabase.co/*",
-    "https://aip-investment-dashboard-tracker.vercel.app/*"
+    "https://gvifstpfolidkvxjeftx.supabase.co/*"
   ],
   "background": {
     "service_worker": "background.js"

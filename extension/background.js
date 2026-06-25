@@ -31,9 +31,14 @@ async function getFreshSession() {
     return null;
   }
 
-  const refreshedSession = await AipSupabaseApi.refreshSession(session.refresh_token);
-  await setStoredSession(refreshedSession);
-  return refreshedSession;
+  try {
+    const refreshedSession = await AipSupabaseApi.refreshSession(session.refresh_token);
+    await setStoredSession(refreshedSession);
+    return refreshedSession;
+  } catch (error) {
+    await clearStoredSession();
+    return null;
+  }
 }
 
 function publicUser(session) {
