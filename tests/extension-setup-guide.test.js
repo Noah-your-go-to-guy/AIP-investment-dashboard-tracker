@@ -38,6 +38,14 @@ test("extension setup explains signed-in cloud storage requirement", () => {
   }
 });
 
+test("setup guide separates cloud extension use from local-only bookmarklet use", () => {
+  assert.match(setupGuide, /Signed-out data stays in your own browser/);
+  assert.match(setupGuide, /Supabase cloud account/);
+  assert.match(setupGuide, /Add a Product With the Bookmarklet Fallback/);
+  assert.match(setupGuide, /Skip this section if you are using the Chrome extension/);
+  assert.match(setupGuide, /local-only capture/);
+});
+
 test("extension manifest targets Amazon and Supabase only for the MVP", () => {
   assert.equal(manifest.manifest_version, 3);
   assert.ok(manifest.host_permissions.includes("https://*.amazon.com/*"));

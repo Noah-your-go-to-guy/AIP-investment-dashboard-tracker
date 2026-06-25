@@ -2,7 +2,7 @@
 
 This guide explains how to get the dashboard from GitHub, run it on your own computer, capture Amazon products, and upload weekly earnings CSVs.
 
-The dashboard is local-first. Your product costs, CSV income, matches, and notes are stored in your own browser on your own computer.
+The dashboard is local-first when you are signed out. Signed-out data stays in your own browser on your own computer. If you sign in and use the Chrome extension, your products and dashboard data save to your signed-in Supabase cloud account so they can sync across browsers.
 
 ## Quick Overview
 
@@ -153,7 +153,11 @@ Important: add the product to the dashboard before uploading earnings CSVs.
 
 If the product is not in the dashboard first, imported earnings may stay unmatched or go to review instead of counting toward that product.
 
-## 6. Add a Product From Amazon
+## 6. Add a Product With the Bookmarklet Fallback
+
+Skip this section if you are using the Chrome extension. The extension saves the product directly as `bought` after you sign in, review the Amazon price, and choose the purchase date.
+
+Use these steps only if you want local-only capture or if the Chrome extension is not working for that product page.
 
 1. Open the Amazon product page.
 2. Click your `Send to AIP Dashboard` bookmark.
